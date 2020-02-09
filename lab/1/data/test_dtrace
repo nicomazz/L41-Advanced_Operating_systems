@@ -1,0 +1,27 @@
+BEGIN {
+    printf("Hello world");
+}
+
+syscall::clock_gettime:return
+/execname == "io-static" && !self->in_benchmark/
+{
+    self->in_benchmark = 1;
+    self->cstart = vtimestamp;
+}
+
+syscall::clock_gettime:entry
+/execname == "io-static" && self->in_benchmark && self->cstart/
+{
+    self->in_benchmark = 0;
+    @len = avg(vtimestamp - self->cstart);
+    
+    printf("averange len:"); printa(@len);
+    printf("att timestamp: %d",vtimestamp - self->cstart);
+}
+
+END
+{
+    printa(@len);
+    printf("ended");
+    exit(0);
+}
