@@ -1,0 +1,60 @@
+1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216
+tid: 100397, pid: 1169, return clock_gettime
+tid: 100128, pid: 1169, return clock_gettime
+----
+tid: 100398, pid: 1170, return clock_gettime
+tid: 100128, pid: 1170, time: 126964195
+tid: 100128, pid: 1170, return clock_gettime
+----
+tid: 100399, pid: 1171, return clock_gettime
+tid: 100128, pid: 1171, time: 100515164
+tid: 100128, pid: 1171, return clock_gettime
+----
+tid: 100400, pid: 1172, return clock_gettime
+tid: 100128, pid: 1172, time: 103860131
+tid: 100128, pid: 1172, return clock_gettime
+----
+tid: 100401, pid: 1173, return clock_gettime
+tid: 100128, pid: 1173, time: 99394304
+tid: 100128, pid: 1173, return clock_gettime
+----
+tid: 100402, pid: 1174, return clock_gettime
+tid: 100128, pid: 1174, time: 93994844
+tid: 100128, pid: 1174, return clock_gettime
+----
+tid: 100403, pid: 1175, return clock_gettime
+tid: 100128, pid: 1175, time: 106154534
+tid: 100128, pid: 1175, return clock_gettime
+----
+tid: 100404, pid: 1176, return clock_gettime
+tid: 100128, pid: 1176, time: 118090454
+tid: 100128, pid: 1176, return clock_gettime
+----
+tid: 100405, pid: 1177, return clock_gettime
+tid: 100128, pid: 1177, time: 148981601
+tid: 100128, pid: 1177, return clock_gettime
+----
+tid: 100406, pid: 1178, return clock_gettime
+tid: 100128, pid: 1178, time: 159019873
+tid: 100128, pid: 1178, return clock_gettime
+----
+tid: 100407, pid: 1179, return clock_gettime
+tid: 100128, pid: 1179, time: 158485552
+tid: 100128, pid: 1179, return clock_gettime
+----
+tid: 100408, pid: 1180, return clock_gettime
+tid: 100128, pid: 1180, time: 160723761
+tid: 100128, pid: 1180, return clock_gettime
+----
+tid: 100409, pid: 1181, return clock_gettime
+tid: 100128, pid: 1181, time: 162469476
+tid: 100128, pid: 1181, return clock_gettime
+----
+tid: 100410, pid: 1182, return clock_gettime
+tid: 100128, pid: 1182, time: 164701515
+tid: 100128, pid: 1182, return clock_gettime
+----
+tid: 100411, pid: 1183, return clock_gettime
+tid: 100128, pid: 1183, time: 180401093
+tid: 100128, pid: 1183, return clock_gettime
+----
