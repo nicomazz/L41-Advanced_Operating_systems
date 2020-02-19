@@ -24,5 +24,10 @@ Evaluation of the socket primitives
 
 ## Practical things to do
 - [ ] bar Graph with buffer size vs count of read and write syscalls
-- [ ] comparison between the distribution of readed bytes and written bytes (bar
-  graph)
+- [ ] comparison between the distribution of readed and written bytes (bar graph)
+- [ ] Graph with the count of on-cpu and off-cpu events for each buffer size
+- [ ] same graph with sleep and wakeup"
+
+# Lab 3 - Performance monitoring counters
+
+
