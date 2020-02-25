@@ -34,12 +34,10 @@ Evaluation of the socket primitives
 - [ ] Understand how to measure the dtrace probe effect
 ### PMC
 - [x] Graph l1d_refill for each size
-- [ ] graph l2_hit for each size
-- [ ] graph l2_hit_per_cycle for each size
-- [ ] graph dtlb_refill for each size
-- [ ] graph cycles per instr
-- [ ] graph axi_read and write
-- [ ] graph mem_write_per_cycle and read
+- [x] graph l2_hit for each size
+- [x] graph cycles per instr
+- [x] graph axi_read and write
+- [x] graph mem_write_per_cycle and read
 
 
 
@@ -54,8 +52,13 @@ Evaluation of the socket primitives
 
 ## Further things to do for the report
 
+### kernel things
+- [ ] when using small buffer size, the 
 - [ ] comment the small errors
+
+### pmc things
 - [ ] Discuss horizontal instruction count and flex point at 8KB for local (pmc_instr.png)
+- [ ] Discuss memory writes and read per instruction
 - [ ] discuss L1 cache refills (pmc_l1_refill.png)
 - [ ] !! discuss AXI-bus read/write transaction vs buffer size
 
