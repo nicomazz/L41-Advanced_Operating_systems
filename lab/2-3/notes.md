@@ -12,7 +12,7 @@ Evaluation of the socket primitives
 
 ## General Things to do
 - [x] instrument clock_gettime for the IPC loop
-- [ ] it may be sensible to inspect quantize() results for both the execution time distributions of the system calls, and the amount of data returned by each
+- [x] it may be sensible to inspect quantize() results for both the execution time distributions of the system calls, and the amount of data returned by each
 - [ ] investigate scheduling events using the sched provider ( on-cpu and off-cpu events)
 - [ ] instrument sleep and wakeup
 - [ ] take care about pid and tid
@@ -21,16 +21,18 @@ Evaluation of the socket primitives
 - [ ] read the FreeBSD Benchmarking Advice wiki ### questions to answer
 - How does increasing IPC buffer size uniformly change performance across IPC models – and why?
 - Explore the impact of the probe effect on your causal investigation; how has DTrace changed the behavior of the benchmark?
+- [ ] plot intervals for on-cpu and off-cpu events
+   - [ ] correctly label the graph
 
 ## Practical things to do
-- [ ] Graph with the off-cpu time for each buffer size (line graph)
+- [x] Graph with the off-cpu time for each buffer size (line graph)
 - [ ] number of syscalls and traps for each case (line graph)
    - [ ] number of read syscall and write syscalls for each buffer size (line graph)
 - [ ] same graph with sleep and wakeup"
-- [ ] Partial read writes:
-   - [ ] show only an example of the aggregation: in a bar graph, the number of each write call and the 
+- [x] Partial read writes:
+   - [x] show only an example of the aggregation: in a bar graph, the number of each write call and the 
          number of read for a specific example
-   - [ ] on a graph, number of reads and number of writes for each buffer size (bar)
+   - [x] on a graph, number of reads and number of writes for each buffer size (bar)
 - [ ] Understand how to measure the dtrace probe effect
 ### PMC
 - [x] Graph l1d_refill for each size
