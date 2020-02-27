@@ -2,7 +2,9 @@ import json
 import re
 from collections import defaultdict
 from dtrace import *
-
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 def dummy_f(cmd):
     return "Don't forget to call set_exec_callback from the jupyter notebook!"
@@ -119,6 +121,7 @@ def benchmark_single_output_aggregation(flags, trials, buff_sizes, dtrace_script
                 if len(new_lines) == 2:
                     break
                 print "!!! error, new lines in benchmark are not 2"
+                print "\n".join(res['output'])
 
             if not quiet:
                 print "{} new output lines".format(len(res['output']))

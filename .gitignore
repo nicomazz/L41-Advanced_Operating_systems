@@ -7,3 +7,4 @@ The*
 
 *.pyc
 **/venv
+**/.idea
