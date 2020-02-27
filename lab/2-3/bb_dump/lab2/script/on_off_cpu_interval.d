@@ -31,7 +31,6 @@ sched:::on-cpu
 /execname == "ipc-static" && in_benchmark > 0 && in_write/
 {
    self->start_on_cpu = timestamp - write_start;
-   /*printf("tid %d oncpu %d", tid, timestamp - write_start);*/
 }
 
 sched:::off-cpu
@@ -44,7 +43,4 @@ syscall::clock_gettime:entry
 /execname == "ipc-static" && in_benchmark > 0/
 {
     in_benchmark = -1;
-
-     /*printf("LOOP ended -> tid: %d, pid: %d, total_time: %d", tid, pid, timestamp - cstart);
-     trace(timestamp - cstart);*/
 }
