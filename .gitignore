@@ -5,3 +5,5 @@ The*
 **/.local/share
 **/.ipython
 
+*.pyc
+**/venv
