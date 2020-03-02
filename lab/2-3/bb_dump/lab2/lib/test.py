@@ -1,10 +1,11 @@
 import json
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import re
 from collections import defaultdict
 from dtrace import *
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+
 
 def dummy_f(cmd):
     return "Don't forget to call set_exec_callback from the jupyter notebook!"
@@ -17,12 +18,14 @@ def set_exec_callback(c):
     global cmd
     cmd = c
 
+
 def testa():
     print cmd("ls")
 
 
 def buffers_up_to_16MB():
     return [1024 * 2 ** exp for exp in range(0, 15)]
+
 
 def setup_kernel():
     return cmd("sysctl kern.ipc.maxsockbuf=33554432")
@@ -135,6 +138,18 @@ def benchmark_single_output_aggregation(flags, trials, buff_sizes, dtrace_script
     return total_res
 
 
+def get_default_color(label):
+    dc = [
+        ("local -s", 'limegreen'),
+        ("local", 'darkorange'),
+        ("pipe", 'cornflowerblue')
+    ]
+    for (k, v) in dc:
+        if k in label:
+            return v
+    return None
+
+
 def plot_graph(xvs,  # x values
                yvs,  # y values
                title=None,
@@ -143,7 +158,9 @@ def plot_graph(xvs,  # x values
                save_name=None,
                axis=None,
                y_label=None,
-               x_label=None
+               x_label=None,
+               color=None,
+               linestyle=None
                ):
     print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
 
@@ -163,12 +180,15 @@ def plot_graph(xvs,  # x values
     error_bars_values = [error_bars.values]
 
     # Create and label the plot
+    if color is None:
+        color = get_default_color(label)
 
     if axis is None:
         fig = plt.figure(figsize=(15, 6))
-        ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label)
+        ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label, color=color, linestyle=linestyle)
     else:
-        ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis, label=label)
+        ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis, label=label, color=color,
+                               linestyle=linestyle)
 
     if title:
         plt.title(title)  # 'io-static {} performance'.format(label))
@@ -224,6 +244,10 @@ def plot_aggregation(input_data_file,
     )
 
 
+def convert_in_bandwith(values, total_size):
+    return [(total_size / 1024) / (val / 1e9) for val in values]
+
+
 def plot_bandwith(input_data_file,
                   title=None,
                   label=None,
@@ -244,7 +268,7 @@ def plot_bandwith(input_data_file,
     read_performance_values = [int(i) for i in data['output']]
 
     # Compute the IO bandwidth in KiBytes/sec
-    io_bandwidth_values = [(total_size / 1024) / (val / 1e9) for val in read_performance_values]
+    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -301,6 +325,45 @@ def plot_pmc(input_data_file,
     )
 
 
+def plot_time(input_data_file,
+              title=None,
+              label=None,
+              trials=10,
+              save_name=None,
+              axis=None,
+              y_label="IPC Bandwith (KB/s)",
+              x_label="Buffer size (KB)",
+              dotted=True
+              ):
+    # Plot the read performance (IO bandwidth against buffer size with error bars)
+    with open(input_data_file, 'r') as f:
+        content = f.read()
+        data = json.loads(content)
+
+    # Buffer sizes to compute the performance with
+    buffer_sizes = data['buffer_sizes']
+    total_size = buffer_sizes[-1]  # 16*1024*1024
+    program_outs = data['program_outputs']
+
+    read_performance_values = [float(extract_pmc_val(i, "time")) for i in program_outs]
+
+    # Compute the IO bandwidth in KiBytes/sec
+    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
+
+    return plot_graph(
+        xvs=buffer_sizes,
+        yvs=io_bandwidth_values,
+        title=title,
+        label=label,
+        trials=trials,
+        save_name=save_name,
+        axis=axis,
+        y_label=y_label,
+        x_label=x_label,
+        linestyle="--" if dotted else "-"
+    )
+
+
 def plot_cnt_graph(xvs,  # x values
                    cnt1y,  # y values,
                    cnt2y,
@@ -334,3 +397,35 @@ def plot_cnt_graph(xvs,  # x values
         plt.savefig(save_name)
 
     return ax
+
+
+def benchmark_without_dtrace(name_prefix, script="BEGIN{}", additional_flags = ""):
+    buffer_sizes = buffers_up_to_16MB()
+    trials = 10
+    modes = ["local", "local -s", "pipe"]
+
+    for mode in modes:
+        flags = "-i {} -v {}".format(mode,additional_flags)
+        out_name = "{}_{}{}.json".format(name_prefix, mode,additional_flags)
+
+        print "mode: ", mode, "flags:", flags, "out_name:", out_name
+
+        res = benchmark(
+            flags=flags,
+            trials=trials,
+            output_name=out_name,
+            buff_sizes=buffer_sizes,
+            dtrace_script=script
+        )
+
+
+def tttt():
+    plot_pmc(input_data_file="",
+             pmc_to_plot="time",
+             title="Performance measurement without DTrace running",
+             label=mode,
+             trials=10,
+             save_name=None,
+             axis=None,
+             y_label="Bandwith",
+             x_label="Buffer size")

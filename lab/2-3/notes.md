@@ -50,7 +50,6 @@ Evaluation of the socket primitives
 ## Additional things, if there is time
 - [ ] time spent in vm_fault/pmap fault (check script) for each buffer size (line graph)
 - [ ] lock contention ( see scripts)
-- [ ] page faults
 
 # Lab 3 - Performance monitoring counters
 
@@ -59,16 +58,28 @@ Evaluation of the socket primitives
 ## Further things to do for the report
 
 ### kernel things
-- [ ] when using small buffer size, the 
-- [ ] comment the small errors
-- [ ] comment that I remove the first result, even if it is not true
+- [x] comment the small errors
+- [x] comment that I remove the first result, even if it is not true
+- [x] traps count graph in the document
+- [x] write that pipes don't have to handle reordering or things like that, but sockets do
+- [x] Plot the performance without dtrace running in the same graph as the one with dtrace running, but dotted
+- [x] !!! ATTENTION: by mistake, my vm_fault graph  is the same as the trap one. it is to do again
+- [ ] Make the vm faults count and traps count graphs like squares, so they fit better.
+- [ ] Put the cpu tracing of reads and writes at the right of the page
+- [ ] put the graph "bandwith_during_scheduling_recording.png", showing the dtrace effect while tracing schduling events. Also "bandwith_during_trap_recording.png"
+- [ ] put a line in the first overall graph on each interesting point (l1 cache, l2 cache, tlb)
+- [ ] update off_cpu_times in the report with "off_cpu_time_all.png"
+- [ ] off-time cpu: update graph in the report, and comment the point at 8K
+- [ ] update vm_fault.png with the new corrected one, and do the trials 10 times!
+- [ ] graph for time in vm_fault
+- [ ] measure time spent in vm faults
 
 ### pmc things
+- [x] write what pmc are in methodology
 - [ ] Discuss horizontal instruction count and flex point at 8KB for local (pmc_instr.png)
 - [ ] Discuss memory writes and read per instruction
 - [ ] discuss L1 cache refills (pmc_l1_refill.png)
 - [ ] !! discuss AXI-bus read/write transaction vs buffer size
 - [ ] memory reads are in cache lines, so 32bytes at time, take this into account
+- [ ] discuss "pmc_execution_overhead.png"
 
-
--
