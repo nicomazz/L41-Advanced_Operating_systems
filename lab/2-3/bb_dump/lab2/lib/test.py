@@ -160,7 +160,8 @@ def plot_graph(xvs,  # x values
                y_label=None,
                x_label=None,
                color=None,
-               linestyle=None
+               linestyle=None,
+               figsize=(15,6)
                ):
     print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
 
@@ -184,7 +185,7 @@ def plot_graph(xvs,  # x values
         color = get_default_color(label)
 
     if axis is None:
-        fig = plt.figure(figsize=(15, 6))
+        fig = plt.figure(figsize=figsize)
         ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label, color=color, linestyle=linestyle)
     else:
         ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis, label=label, color=color,
@@ -299,7 +300,8 @@ def plot_pmc(input_data_file,
              save_name=None,
              axis=None,
              y_label=None,
-             x_label=None):
+             x_label=None,
+             linestyle='-'):
     # Plot the read performance (IO bandwidth against buffer size with error bars)
     with open(input_data_file, 'r') as f:
         content = f.read()
@@ -321,7 +323,9 @@ def plot_pmc(input_data_file,
         save_name=save_name,
         axis=axis,
         y_label=y_label,
-        x_label=x_label
+        x_label=x_label,
+        linestyle=linestyle,
+        figsize=(8,8)
     )
 
 

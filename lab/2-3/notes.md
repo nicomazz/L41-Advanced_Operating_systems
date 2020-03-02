@@ -16,20 +16,19 @@ Evaluation of the socket primitives
 - [x] investigate scheduling events using the sched provider ( on-cpu and off-cpu events)
 - [x] instrument sleep and wakeup
 - [x] take care about pid and tid
-- [ ] probe effect: one simple way to approach the problem is to analyse the results of performance benchmarking with and without DTrace scripts running, and compare the ascii output of the script
-- [ ] read the FreeBSD Benchmarking Advice wiki 
-- [ ] plot intervals for on-cpu and off-cpu events
-   - [ ] correctly label the graph
+- [x] probe effect: one simple way to approach the problem is to analyse the results of performance benchmarking with and without DTrace scripts running, and compare the ascii output of the script
+- [x] read the FreeBSD Benchmarking Advice wiki 
+- [ ] use perfetto to visualize the function calls
 
 ### questions to answer
 - How does increasing IPC buffer size uniformly change performance across IPC models – and why?
 - Explore the impact of the probe effect on your causal investigation; how has DTrace changed the behavior of the benchmark?
 
 ## Practical things to do
-- [ ] measure page fault with vminfo. try to run this: `dtrace -P vminfo'/execname == "soffice.bin"/{@[probename] = count()}'`
-- [ ] number of syscalls and traps for each case (line graph)
-   - [ ] number of read syscall and write syscalls for each buffer size (line graph)
-   - [ ] instrument traps with fbt::abort_handler:entry
+- [x] measure page fault with vminfo. try to run this: `dtrace -P vminfo'/execname == "soffice.bin"/{@[probename] = count()}'`
+- [x] number of syscalls and traps for each case (line graph)
+   - [x] number of read syscall and write syscalls for each buffer size (line graph)
+   - [x] instrument traps with fbt::abort_handler:entry
 - [x] Graph with the off-cpu time for each buffer size (line graph)
 - [x] Partial read writes:
    - [x] show only an example of the aggregation: in a bar graph, the number of each write call and the 
@@ -48,7 +47,7 @@ Evaluation of the socket primitives
 
 
 ## Additional things, if there is time
-- [ ] time spent in vm_fault/pmap fault (check script) for each buffer size (line graph)
+- [x] time spent in vm_fault/pmap fault (check script) for each buffer size (line graph)
 - [ ] lock contention ( see scripts)
 
 # Lab 3 - Performance monitoring counters
@@ -64,22 +63,23 @@ Evaluation of the socket primitives
 - [x] write that pipes don't have to handle reordering or things like that, but sockets do
 - [x] Plot the performance without dtrace running in the same graph as the one with dtrace running, but dotted
 - [x] !!! ATTENTION: by mistake, my vm_fault graph  is the same as the trap one. it is to do again
-- [ ] Make the vm faults count and traps count graphs like squares, so they fit better.
+- [x] put the graph "bandwith_during_scheduling_recording.png", showing the dtrace effect while tracing schduling events. Also "bandwith_during_trap_recording.png"
+- [x] put a line in the first overall graph on each interesting point (l1 cache, l2 cache, tlb)
+- [x] graph for time in vm_fault
+- [x] measure time spent in vm faults
+- [x] check if there is difference between the data gathered by dtrace and the one form the benchmark output
+- [x] time spend in vm faults
+- [x] IPC_comparison_with_and_wno_dtrace.png in the probe effect
+- [x] update overall graph
+- [x] write that the time spent in vm faults grows exponentially
+- [x] update overall image with vertical bars
 - [ ] Put the cpu tracing of reads and writes at the right of the page
-- [ ] put the graph "bandwith_during_scheduling_recording.png", showing the dtrace effect while tracing schduling events. Also "bandwith_during_trap_recording.png"
-- [ ] put a line in the first overall graph on each interesting point (l1 cache, l2 cache, tlb)
-- [ ] update off_cpu_times in the report with "off_cpu_time_all.png"
-- [ ] off-time cpu: update graph in the report, and comment the point at 8K
-- [ ] update vm_fault.png with the new corrected one, and do the trials 10 times!
-- [ ] graph for time in vm_fault
-- [ ] measure time spent in vm faults
 - [ ] verify when to use vtimestamp and when to use the normal one 
-- [ ] check if there is difference between the data gathered by dtrace and the one form the benchmark output
-- [ ] time spend in vm faults
-- [ ] update overall graph
-
+- [ ] understand superpages and how they work, to write something more on the VM faults and traps section
+- [ ] think if to put the overall graph with the vertical lines
 ### pmc things
-- [x] write what pmc are in methodology
+- [x] write what pmc are in methodologys
+- [ ] update graphs with squared ones
 - [ ] Discuss horizontal instruction count and flex point at 8KB for local (pmc_instr.png)
 - [ ] Discuss memory writes and read per instruction
 - [ ] discuss L1 cache refills (pmc_l1_refill.png)
