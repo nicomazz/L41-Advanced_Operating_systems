@@ -73,6 +73,10 @@ Evaluation of the socket primitives
 - [ ] update vm_fault.png with the new corrected one, and do the trials 10 times!
 - [ ] graph for time in vm_fault
 - [ ] measure time spent in vm faults
+- [ ] verify when to use vtimestamp and when to use the normal one 
+- [ ] check if there is difference between the data gathered by dtrace and the one form the benchmark output
+- [ ] time spend in vm faults
+- [ ] update overall graph
 
 ### pmc things
 - [x] write what pmc are in methodology
@@ -82,4 +86,5 @@ Evaluation of the socket primitives
 - [ ] !! discuss AXI-bus read/write transaction vs buffer size
 - [ ] memory reads are in cache lines, so 32bytes at time, take this into account
 - [ ] discuss "pmc_execution_overhead.png"
+- [ ] discuss scalability of pipes and sockets
 
