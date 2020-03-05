@@ -73,10 +73,26 @@ Evaluation of the socket primitives
 - [x] update overall graph
 - [x] write that the time spent in vm faults grows exponentially
 - [x] update overall image with vertical bars
-- [ ] Put the cpu tracing of reads and writes at the right of the page
-- [ ] verify when to use vtimestamp and when to use the normal one 
+- [x] verify when to use vtimestamp and when to use the normal one 
+- [x] think if to put the overall graph with the vertical lines
+- [x] line on the size of caches
+- [x] vertical lines on microarchitecture things
+- [x] write about perfetto int he appendix
 - [ ] understand superpages and how they work, to write something more on the VM faults and traps section
-- [ ] think if to put the overall graph with the vertical lines
+- [ ] vm an important component but not huge (1s at 16MB)
+- [ ] percentage of vm_fault on total execution
+- [ ] connection between pcm misses and the number of memory accesses
+- [ ] explain what happens at 8k for sockets, and the plane up until 32KB.
+- [ ] see the tlb graph
+- [ ] use the profile provider to understand where most of the time is spent
+- [ ] iteration and median vs averange
+- [ ] larger figures
+- [ ] annotate inflection points
+- [ ] structure the report based on the key behaviours
+- [ ] in the initial part the time spent in syscalls is amortized
+- [ ] graph with the amount of time vm_fault, and other relevant functions, for each buffer size (
+   - [ ] time in uipc_send and uipc_rcvd
+
 ### pmc things
 - [x] write what pmc are in methodologys
 - [ ] update graphs with squared ones
@@ -88,3 +104,25 @@ Evaluation of the socket primitives
 - [ ] discuss "pmc_execution_overhead.png"
 - [ ] discuss scalability of pipes and sockets
 
+- [ ] clock_cycles/instr_executed is interesting to explain the 64K
+- [ ] from the L1_DCACHE_REFILL we can se how pipes 
+- [ ] ? why does the l1_dcache_access goes up when the buffer size is very high?
+- [ ] reason why at 8k the two sockets diverge is that the normal one does not use the L1 cache efficiently: it only uses a quarter of it. There are more copies from the kernel buffer to the user buffer than the other with mataching buffer? A proof might be find inspecting the number of calls of the function that copies things inside the buffer
+- [ ] TLB refills are more frequentwith normal socketes after 8kb?
+## from the feedback of the practise one
+
+- [x] do only assigned work
+- page zeroing is a growing expense as io buffer size increases
+- Include info about variance and present IQR information
+- Write about the sd card and its speed limits. 
+- write the conclusions in the abstract and conclusion 
+- write about the number of iterations run, and used of median vs averange
+- Larger figure
+- annotate inflection points and microarachitecture threashold
+- Structure the report based on the various points
+- dtrace effect: the mean is useless
+
+
+```
+In 3.1: It would be useful to be more clear on why 64K was the optimal size. The first observation is that this appears to be where system-call overhead amortization is maximized, but microarchitectural limits haven’t yet been exceeded. But then the key question is: Why 64K? This amount is 2x the size of the L1 cache, and ¼ the size of the L2 cache. The answer likely lies in two areas: (1) The granularity of our buffer sizing isn’t fine-grained enough – it would be interesting to try with 96K, for example; and (2) Since this is a memcpy() benchmark, both source and destination need to fit in the L2. You do not appear to engage with the performance collapse seen with reads from /dev/zero, which was a key challenge in this lab, since flatlining when exceeding the L2 is expected – as we hit DRAM speeds – but collapsing is not.
+```

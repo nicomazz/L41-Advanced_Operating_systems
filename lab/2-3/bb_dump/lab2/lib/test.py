@@ -220,7 +220,8 @@ def plot_aggregation(input_data_file,
                      save_name=None,
                      axis=None,
                      y_label=None,
-                     x_label=None):
+                     x_label=None,
+                     figsize=None):
     # in aggregations the output is one line yes and one no
 
     with open(input_data_file, 'r') as f:
@@ -241,7 +242,8 @@ def plot_aggregation(input_data_file,
         save_name=save_name,
         axis=axis,
         y_label=y_label,
-        x_label=x_label
+        x_label=x_label,
+        figsize=figsize
     )
 
 
@@ -301,6 +303,7 @@ def plot_pmc(input_data_file,
              axis=None,
              y_label=None,
              x_label=None,
+             figsize=None,
              linestyle='-'):
     # Plot the read performance (IO bandwidth against buffer size with error bars)
     with open(input_data_file, 'r') as f:
@@ -325,7 +328,7 @@ def plot_pmc(input_data_file,
         y_label=y_label,
         x_label=x_label,
         linestyle=linestyle,
-        figsize=(8,8)
+        figsize=figsize
     )
 
 

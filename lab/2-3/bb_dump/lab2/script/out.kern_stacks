@@ -1,0 +1,67 @@
+
+
+
+              kernel`pipe_write+0x538
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`pipe_write+0x538
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1
+
+              kernel`copyout+0x1ac
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyout+0x1ac
+              0xc37d5b30
+                1
+
+              kernel`spinlock_exit+0x3c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`spinlock_exit+0x3c
+              kernel`ast+0x444
+              kernel`0xc079ef70
+              kernel`0xc079ef70
+                6
+
+              kernel`copyout+0x18c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyout+0x18c
+              0xc37d5b30
+               22
+
+              kernel`pmap_qenter+0x4c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`pmap_qenter+0x4c
+              kernel`sf_buf_alloc+0x2d4
+              kernel`uiomove_fromphys+0xc4
+              kernel`pipe_read+0x4a0
+              kernel`dofileread+0xb0
+              kernel`kern_readv+0x78
+              kernel`sys_read+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+               26
