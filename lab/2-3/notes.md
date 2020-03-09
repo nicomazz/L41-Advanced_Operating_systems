@@ -107,7 +107,8 @@ Evaluation of the socket primitives
 - [ ] clock_cycles/instr_executed is interesting to explain the 64K
 - [ ] from the L1_DCACHE_REFILL we can se how pipes 
 - [ ] ? why does the l1_dcache_access goes up when the buffer size is very high?
-- [ ] reason why at 8k the two sockets diverge is that the normal one does not use the L1 cache efficiently: it only uses a quarter of it. There are more copies from the kernel buffer to the user buffer than the other with mataching buffer? A proof might be find inspecting the number of calls of the function that copies things inside the buffer
+- [ ] reason why at 8k the two sockets diverge is that the normal one does not use the L1 cache efficiently: it only uses a quarter of it. There are more copies from the kernel buffer to the user buffer than the other with mataching buffer? A proof might be find inspecting the number of calls of the function that copies things inside the buffer.
+- [ ] Double the time read syscall have to be done: 2048 instead of 1024 XXX-> this is not the reason
 - [ ] TLB refills are more frequentwith normal socketes after 8kb?
 ## from the feedback of the practise one
 
