@@ -1,0 +1,36 @@
+
+
+
+              kernel`tdsendsignal+0x100
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`tdsendsignal+0x100
+              kernel`pgsignal+0x12c
+              kernel`tty_signal_pgrp+0x120
+              kernel`ttydisc_rint+0x378
+              kernel`ttydisc_rint_simple+0x40
+              kernel`ptsdev_write+0x11c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1
+
+              kernel`nanouptime+0x24
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`nanouptime+0x24
+              kernel`kern_clock_gettime+0x70
+              kernel`sys_clock_gettime+0x1c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1

@@ -1,0 +1,156 @@
+root@l41-beaglebone:~ # dtrace -n 'profile-17 /execname == "ipc-static"/ { @traces[stack ( ) ] = count ( ) ; }'
+dtrace: description 'profile-17 ' matched 1 probe
+dtrace: buffer size lowered to 2m
+dtrace: aggregation size lowered to 2m
+^C
+
+
+              kernel`copyin+0x1b4
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyin+0x1b4
+              kernel`uiomove_faultflag+0x10c
+              kernel`m_uiotombuf+0x118
+              kernel`sosend_generic+0x568
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1
+
+              kernel`ast+0x91c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`ast+0x91c
+              kernel`0xc079ef70
+              kernel`0xc079ef70
+                1
+
+              kernel`m_getm2+0x27c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`m_getm2+0x27c
+              kernel`m_uiotombuf+0x68
+              kernel`sosend_generic+0x568
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1
+
+              kernel`m_getm2+0x28c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`m_getm2+0x28c
+              kernel`m_uiotombuf+0x68
+              kernel`sosend_generic+0x568
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1
+
+              kernel`copyout+0x1ac
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyout+0x1ac
+              0xc3bfc370
+                1
+
+              kernel`soreceive
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`soreceive
+              kernel`soo_read+0x2c
+              kernel`dofileread+0xb0
+              kernel`kern_readv+0x78
+              kernel`sys_read+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                2
+
+              kernel`copyin+0x1a4
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyin+0x1a4
+              kernel`uiomove_faultflag+0x10c
+              kernel`m_uiotombuf+0x118
+              kernel`sosend_generic+0x568
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                9
+
+              kernel`copyin+0x180
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyin+0x180
+              kernel`uiomove_faultflag+0x10c
+              kernel`m_uiotombuf+0x118
+              kernel`sosend_generic+0x568
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+               17
+
+              kernel`copyin+0x18c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyin+0x18c
+              kernel`uiomove_faultflag+0x10c
+              kernel`m_uiotombuf+0x118
+              kernel`sosend_generic+0x568
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+               59
+

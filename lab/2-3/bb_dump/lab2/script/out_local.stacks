@@ -1,0 +1,83 @@
+
+
+
+              kernel`copyout+0x1ac
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyout+0x1ac
+              0xc46ed6e0
+                1
+
+              kernel`spinlock_exit+0x3c
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`spinlock_exit+0x3c
+              kernel`wakeup+0x30
+              kernel`sowakeup+0x58
+              kernel`uipc_send+0x109c
+              kernel`sosend_generic+0x778
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                1
+
+              kernel`uipc_send+0x1124
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`uipc_send+0x1124
+              kernel`sosend_generic+0x778
+              kernel`soo_write+0x3c
+              kernel`dofilewrite+0xa8
+              kernel`kern_writev+0x78
+              kernel`sys_write+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                2
+
+              kernel`copyout+0x194
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyout+0x194
+              0xc46ed6e0
+                4
+
+              kernel`dofileread+0xec
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`dofileread+0xec
+              kernel`kern_readv+0x78
+              kernel`sys_read+0x4c
+              kernel`swi_handler+0x6d8
+              kernel`swi_exit
+              kernel`swi_exit
+                8
+
+              kernel`copyout+0x198
+              kernel`timercb+0x9c
+              kernel`am335x_dmtimer_et_intr+0x44
+              kernel`intr_event_handle+0x70
+              kernel`intr_irq_handler+0x60
+              kernel`exception_exit
+              kernel`copyout+0x198
+              0xc46ed6e0
+               11

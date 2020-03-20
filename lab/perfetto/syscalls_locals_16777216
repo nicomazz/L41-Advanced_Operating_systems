@@ -1,0 +1,8 @@
+# DTrace
+clock_gettime return ts: 13412963455576 tid: 202272 pid: 2146 j:1
+write entry ts: 13412963529763 tid: 202272 pid: 2146 j:2
+write return ts: 13413889533229 tid: 202272 pid: 2146 j:3
+thr_exit entry ts: 13413889940482 tid: 202272 pid: 2146 j:4
+read return ts: 13414813786927 tid: 202246 pid: 2146 j:1
+
+
