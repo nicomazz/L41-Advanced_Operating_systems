@@ -141,7 +141,7 @@ def benchmark_single_output_aggregation(flags, trials, buff_sizes, dtrace_script
 
 def get_default_color(label):
     if label is None: return None
-    
+
     dc = [
         ("local -s", 'limegreen'),
         ("local", 'darkorange'),
@@ -166,7 +166,8 @@ def plot_graph(xvs,  # x values
                x_label=None,
                color=None,
                linestyle=None,
-               figsize=(15, 6)
+               figsize=(15, 6),
+               x_ticks=None
                ):
     print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
 
@@ -205,8 +206,12 @@ def plot_graph(xvs,  # x values
 
     if len(xvs) >= 2 and xvs[1] == xvs[0] ** 2:
         ax.set_xscale('log')
-    ax.set_xticks(xvs)
-    ax.set_xticklabels(["{} ms".format(i) for i in xvs])
+
+    if x_ticks is None:
+        x_ticks = xvs
+    ax.ticklabel_format(useOffset=False)
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(["{}".format(i) for i in x_ticks])
 
     plt.grid('on', axis='x')
     plt.grid('on', axis='y')

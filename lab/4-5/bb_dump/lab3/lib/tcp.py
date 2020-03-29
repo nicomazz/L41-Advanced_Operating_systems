@@ -7,6 +7,8 @@ from dtrace import *
 
 from test import setup_kernel, save_output, convert_in_bandwith, plot_graph, read_json_file
 
+TARGET_PORT = 10141
+
 
 def dummy_f(cmd):
     return "Don't forget to call set_exec_callback from the jupyter notebook!"
@@ -107,7 +109,7 @@ def graph_tcp(latency):
             if value['previous_tcp_state'] is not None and value['tcp_state'] is not None:
                 from_state = value['previous_tcp_state'][6:]
                 to_state = value['tcp_state'][6:]
-                label = "server" if value["local_port"] == 10141 else "client"
+                label = "server" if value["local_port"] == TARGET_PORT else "client"
 
                 # print "State transition {} -> {}".format(
                 #    value['previous_tcp_state'], value['tcp_state'])
@@ -248,7 +250,7 @@ fbt::tcp_do_segment:entry
     printf("dest:%d ", htons(args[1]->th_dport));
     printf("Seq:%d ", (unsigned int)args[1]->th_seq);
     printf("Ack:%d ", (unsigned int)args[1]->th_ack);
-    printf("Time:%d ", walltimestamp);
+    printf("Time:%d ", timestamp);
     printf("wnd:%d ", args[3]->snd_wnd);
     printf("cwnd:%d ", args[3]->snd_cwnd);
     printf("ssthresh:%d ", args[3]->snd_ssthresh);
@@ -275,29 +277,67 @@ def extract_tcp_variables(input_name):
     return res
 
 
+def filter_source(d, src):
+    source = d["source"]
+    for key in d:
+        d[key] = [d[key][i] for i in range(len(d[key])) if source[i] == src]
+    return d
+
+
+def filter_resolution(d, min_dt=1e5):
+    times = d["Time"]
+    prev_t = times[0]
+    res = defaultdict(list)
+    for i in range(len(times)):
+        t = times[i]
+        if t - prev_t >= min_dt:
+            for key in d:
+                res[key].append(d[key][i])
+            prev_t = t
+    return res
+
+
 def compute_bandwidth(times, seq):
     assert len(times) == len(seq) and len(times) > 1
-    bandwiths = []
-    for i in range(len(times) - 1):
-        dq = float(seq[i + 1] - seq[i])
-        dt = float(times[i + 1] - times[i])
-        bandwiths.append(dq * 1e6 / dt)
-    bandwiths.append(bandwiths[-1])
-    return bandwiths
+    bandwidth = []
+    gap = 1
+    for i in range(len(times) - gap - 1):
+        dq = float(seq[i + gap] - seq[i])
+        dt = float(times[i + gap] - times[i])
+        bandwidth.append(dq * 1e6 / dt)
+
+    for i in range(gap):
+        bandwidth.append(bandwidth[-1])
+    return bandwidth
 
 
-def plot_tcp_bandwith_with_time(input_name, title=None):
-    variables = extract_tcp_variables(input_name)
-    time = variables["Time"][::300]
-    seq = variables["Seq"][::300]
+def avg(l):
+    return sum(l) / len(l)
+
+
+def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=40):
+    tmp = extract_tcp_variables(input_name)
+    tmp = filter_source(tmp, TARGET_PORT)
+    variables = filter_resolution(tmp)
+
+    time = variables["Time"]
+    seq = variables["Seq"]
     bandwidth = compute_bandwidth(time, seq)
     offset = time[0]
     time = [i - offset for i in time]
+    max_time = time[-1] / 1e9
+    divisions = 10
+    x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
+
+    bandwidth = [avg(bandwidth[i:i + resolution]) for i in range(int(len(bandwidth) / resolution))]
+    bandwidth.append(bandwidth[-1])
+    print("Data prepared. Now plotting..")
     return plot_graph(
-        xvs=time,
+        xvs=[t / 1e9 for t in time[::resolution]],
         yvs=bandwidth,
         trials=1,
-        title=title
+        title=title,
+        x_ticks=x_ticks
     )
 
 
