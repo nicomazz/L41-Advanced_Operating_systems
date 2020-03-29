@@ -80,4 +80,5 @@ dtrace -n 'fbt::tcp_do_segment:entry {trace((unsigned int)args[1]->th_seq);trace
 
 ## Todos
 
-- [ ] Add the TCP flags (SYN,ACK) to the graph. To do that, use `tcp_do_segment`, that is fired for each received package
+- [x] Add the TCP flags (SYN,ACK) to the graph. To do that, use `tcp_do_segment`, that is fired for each received package
+

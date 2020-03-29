@@ -1,8 +1,11 @@
 import json
+from collections import defaultdict
 
 import pygraphviz as pgv
 from IPython.display import Image
 from dtrace import *
+
+from test import setup_kernel, save_output, convert_in_bandwith, plot_graph, read_json_file
 
 
 def dummy_f(cmd):
@@ -28,6 +31,7 @@ def setup_pipes(latency=10):
     cmd("ipfw add 1 pipe 1 tcp from any 10141 to any via lo0")
     cmd("ipfw add 2 pipe 2 tcp from any to any 10141 via lo0")
 
+
 """
  fbt::tcp_do_segment:entry {
         trace((unsigned int)args[1]->th_seq);
@@ -35,9 +39,10 @@ def setup_pipes(latency=10):
         trace(tcp_state_string[args[3]->t_state]);
     }
 """
+
+
 def graph_tcp(latency):
     set_latency(latency)
-
 
     tcp_state_change_script = """
    fbt::syncache_add:entry {
@@ -97,7 +102,7 @@ def graph_tcp(latency):
     for raw_value in values:
         try:
             value = json.loads(raw_value)
-            #print(value)
+            # print(value)
             # JSON formatted string
             if value['previous_tcp_state'] is not None and value['tcp_state'] is not None:
                 from_state = value['previous_tcp_state'][6:]
@@ -119,3 +124,183 @@ def graph_tcp(latency):
     print("Completed")
     tcp_state_machine.draw(path=output_file, format='png', prog='dot')
     return Image(output_file)
+
+
+speed_benchmark = """
+BEGIN {
+    in_benchmark = 0;
+    cstart = 0;
+}
+
+syscall::clock_gettime:return
+/execname == "ipc-static" && in_benchmark <= 0/
+{
+    in_benchmark++;
+    cstart = in_benchmark == 1 ? timestamp : cstart;
+}
+
+
+
+syscall::clock_gettime:entry
+/execname == "ipc-static" && in_benchmark > 0/
+{
+    in_benchmark = -1;
+    trace(timestamp - cstart);
+}
+
+syscall::exit:entry
+/execname == "ipc-static"/
+{
+}
+
+"""
+
+
+def benchmark_tcp_bandwith(latencies=[], flags="", dtrace_script=speed_benchmark, output_name="", quiet=False,
+                           trials=10):
+    values = []
+
+    def simple_out(value):
+        values.append(value)
+
+    # Create a seperate thread to run the DTrace instrumentation
+    setup_kernel()
+    dtrace_thread = DTraceConsumerThread(dtrace_script,
+                                         chew_func=lambda v: None,
+                                         chewrec_func=lambda v: None,
+                                         out_func=simple_out,
+                                         sleep=1)
+
+    # Start the DTrace instrumentation
+    dtrace_thread.start()
+
+    program_outputs = []
+
+    # Display header to indicate that the benchmarking has started
+    for latency in latencies:
+        set_latency(latency)
+        if not quiet: print("Latency: {}".format(latency))
+
+        for i in range(trials):
+            # !!! -B flag removed
+            ipc_cmd = "ipc/ipc-static -i tcp -B -q {} 2thread".format(flags)
+            output = cmd(ipc_cmd)
+            program_outputs.append(str("\n".join(output)))
+
+    # The benchmark has completed - stop the DTrace instrumentation
+    dtrace_thread.stop()
+    dtrace_thread.join()
+    dtrace_thread.consumer.__del__()
+
+    if not quiet:
+        print "values collected: {}".format(len(values))
+
+    result = {
+        "latencies": latencies,
+        "output": values,
+        "program_outputs": program_outputs
+    }
+
+    if len(output_name) > 0:
+        save_output(result, output_name)
+
+    return result
+
+
+def plot_tcp_bandwidth(input_data_file,
+                       title=None,
+                       label=None,
+                       trials=10,
+                       save_name=None,
+                       axis=None,
+                       y_label=None,
+                       x_label=None
+                       ):
+    # Plot the read performance (IO bandwidth against buffer size with error bars)
+    data = read_json_file(input_data_file)
+
+    # Buffer sizes to compute the performance with
+    xvs = data['latencies']
+    total_size = 16 * 1024 * 1024
+    read_performance_values = [int(i) for i in data['output']]
+
+    # Compute the IO bandwidth in KiBytes/sec
+    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
+
+    return plot_graph(
+        xvs=xvs,
+        yvs=io_bandwidth_values,
+        title=title,
+        label=label,
+        trials=trials,
+        save_name=save_name,
+        axis=axis,
+        y_label=y_label,
+        x_label=x_label
+    )
+
+
+wnd_cwnd_sshth = """
+fbt::tcp_do_segment:entry
+/args[1]->th_sport == htons(10141) || args[1]->th_dport == htons(10141)/
+{ 
+    printf("source:%d ", htons(args[1]->th_sport));
+    printf("dest:%d ", htons(args[1]->th_dport));
+    printf("Seq:%d ", (unsigned int)args[1]->th_seq);
+    printf("Ack:%d ", (unsigned int)args[1]->th_ack);
+    printf("Time:%d ", walltimestamp);
+    printf("wnd:%d ", args[3]->snd_wnd);
+    printf("cwnd:%d ", args[3]->snd_cwnd);
+    printf("ssthresh:%d ", args[3]->snd_ssthresh);
+}
+"""
+
+
+def benchmark_variables(latency=0, flags="", output_name=""):
+    return benchmark_tcp_bandwith(
+        latencies=[latency],
+        dtrace_script=wnd_cwnd_sshth,
+        trials=1,
+        flags=flags,
+        output_name=output_name)
+
+
+def extract_tcp_variables(input_name):
+    data = read_json_file(input_name)
+    output = data["output"]
+    res = defaultdict(list)
+    for s in output:
+        ss = s.split(":")
+        res[ss[0]].append(int(ss[1]))
+    return res
+
+
+def compute_bandwidth(times, seq):
+    assert len(times) == len(seq) and len(times) > 1
+    bandwiths = []
+    for i in range(len(times) - 1):
+        dq = float(seq[i + 1] - seq[i])
+        dt = float(times[i + 1] - times[i])
+        bandwiths.append(dq * 1e6 / dt)
+    bandwiths.append(bandwiths[-1])
+    return bandwiths
+
+
+def plot_tcp_bandwith_with_time(input_name, title=None):
+    variables = extract_tcp_variables(input_name)
+    time = variables["Time"][::300]
+    seq = variables["Seq"][::300]
+    bandwidth = compute_bandwidth(time, seq)
+    offset = time[0]
+    time = [i - offset for i in time]
+    return plot_graph(
+        xvs=time,
+        yvs=bandwidth,
+        trials=1,
+        title=title
+    )
+
+
+def plot_variables(input_name, variables=["Seq", "Ack", "wnd", "Cwnd", "sshresh"]):
+    variables = extract_tcp_variables(input_name)
+    xvs = variables["time"]
