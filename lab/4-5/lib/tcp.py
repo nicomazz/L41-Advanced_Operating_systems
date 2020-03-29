@@ -40,8 +40,16 @@ def graph_tcp(latency):
 
 
     tcp_state_change_script = """
+   fbt::syncache_add:entry {
+   }
+   fbt::syncache_expand:entry{
+   }
    
-    
+   fbt::tcp_do_segment:entry {
+        trace((unsigned int)args[1]->th_seq);
+        trace((unsigned int)args[1]->th_ack);
+        trace(tcp_state_string[args[3]->t_state]);
+    }
     fbt::tcp_state_change:entry {
         printf("{\\"timestamp\\": %u, \\"local_port\\": %u, \\"foreign_port\\": %u, \\"previous_tcp_state\\": \\"%s\\", \\"tcp_state\\": \\"%s\\"}", 
         walltimestamp,

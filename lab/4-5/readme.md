@@ -77,3 +77,7 @@ dtrace -n 'fbt::tcp_do_segment:entry {trace((unsigned int)args[1]->th_seq);trace
 
 - the tcp RFC came out in 1981, then the paper congestion avoidance and control in 1988. This was interesting
 - 
+
+## Todos
+
+- [ ] Add the TCP flags (SYN,ACK) to the graph. To do that, use `tcp_do_segment`, that is fired for each received package
