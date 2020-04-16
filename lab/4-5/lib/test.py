@@ -433,6 +433,25 @@ def benchmark_without_dtrace(name_prefix, script="BEGIN{}", additional_flags="")
             dtrace_script=script
         )
 
+def benchmark_probe_effect(name_prefix, script="BEGIN{}", additional_flags=""):
+    buffer_sizes = buffers_up_to_16MB()
+    trials = 10
+    modes = ["local", "local -s", "pipe"]
+
+    for mode in modes:
+        flags = "-i {} -v {}".format(mode, additional_flags)
+        out_name = "{}_{}{}.json".format(name_prefix, mode, additional_flags)
+
+        print "mode: ", mode, "flags:", flags, "out_name:", out_name
+
+        res = benchmark(
+            flags=flags,
+            trials=trials,
+            output_name=out_name,
+            buff_sizes=buffer_sizes,
+            dtrace_script=script
+        )
+
 
 def tttt():
     plot_pmc(input_data_file="",

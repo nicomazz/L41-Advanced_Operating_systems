@@ -8,8 +8,9 @@
 
 \usepackage{graphicx}
 \graphicspath{ {./images/} }
+\usepackage{subcaption}
 
-\usepackage{subfig}
+%\usepackage{subfig}
 \usepackage[
 backend=biber,
 style=ieee,
@@ -62,7 +63,7 @@ sorting=ynt
 
 \thispagestyle{empty}
 
-\begin{abstract}
+\begin{abstract}           
 
    - state machine comparison with the RFC[] one manually setting differnet latencies (differences on the final sequence)
    - analysis of the flow-control and congestion control mechanisms, plotting graphs with the congestion window, and analysing how the tcp state variable change in time.
@@ -76,6 +77,7 @@ sorting=ynt
 \setcounter{page}{1}
 
 \section{Introduction}
+
 
 \section{Experimental setup and methodology}
 
@@ -94,26 +96,30 @@ For the experiment, it is used the BeagleBone Black board with an open-source Fr
 \end{itemize}
 
 The board mounts an SD card. However, it is not relevant for the test, as the benchmark is in-memory.
+      
 
-\subsection{Methodology}
+\subsection {Methodology}
 
 The benchmark consists of a program able to create two ends of a TCP socket over the loopback interface. The program is statically linked, so we can neglet dynamic linking performance overhead. The program opens a socket using the \codeword{socket(2)} system call, bind it to a specifc port, and listen for new connections. The receiving end similarly opens a socket, and uses \codeword{connect(2)} to connect with the other endpoint at the same port. During the benchmark, a fixed size amount of data is transferred from the sender to the receiver. Afterwards, the \codeword{close(2)} system call initiate the closing phase.
 
-IPFW\cite{IPFW}, the firewall used, provides DUMMYNET, that allows to shape the traffic. In this experiment, IPFW is used to generate two pipes, and sent the latency in each one of those. The pipes are used to filter the traffic, and selectively apply the delay only to the traffic we care abot.
+IPFW\cite{IPFW}, the firewall used, provides DUMMYNET, that allows to shape the traffic. In this experiment, IPFW is used to generate two pipes, and sent the latency in each one of those. The pipes are used to filter the traffic, and selectively apply the delay only to the traffic we care abot. We then generate the state transition graph at different levels of delays, to see the differences.
 The actors of the communication, in our case, are two threads: one that sends data, and the other that receives it. The dimension of the buffer passed to the \codeword{write(2)} system call are constant to 128KB.
 The total amount of data transferred is 16MB for each benchmark run.
 
-The loopback Maximum Transmission Unit (MTU) is manually set to 1,500 bytes before each test, to avoid larger values due to the local nature of the test, and resemble LAN or WAN results.
+The loopback Maximum Transmission Unit (MTU) is manually set to 1,500 bytes before each test. In this it is possible avoid larger values that might have been caused to the local nature of the test, resembling real LAN or WAN results.
 
 DTrace is used for most performance measurements. In particualar, we use the following providers:
+
 \begin{itemize}
    \item Function Boundary Tracing (FBT) provider. We are using probes on specific functions. There are also TCP generic ones, portable across different systems, but they do not provide the needed number of parameters to make all the analysis. The output from the tracing of the entire kernel's function is then visualized in Perfetto\cite{noauthor_perfetto_nodate}, to graphically inspect for futher interesting behaviours.
    \item Profile provider. It fires a probe at a given frequency. We use it to aggregate the results of \codeword{stack()}, and see where most of the time is spent. 
 \end{itemize}
+
 The verbose benchmark output, containing the IPC loop duration measured from the program, is then used to evaluate the probe-effect caused by DTrace.
 
 
 All the benchmark runs are executed 11 times for each parameter value, and the first one is dropped. In each graph, it is possible to see the error as a vertical line. However, in almost all cases, this error is negligible, highlighting a controlled benchmarking environment. The main value on the graph is the median of the 10 measurements.
+
 
 
 \subsection{Limitations}
@@ -128,10 +134,53 @@ During the tracing, several other processes were running, and this might have in
 
 \section{Results and discussion}
 
+\subsection{TCP state-transition diagram}
+% todo insert diagram image and RFC image
+%overall figure
+\begin{figure}[]
+\begin{subfigure}{.25\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{images/TCP_state_machine_0_ms.png}
+    \caption{TCP state transition graph with 0ms latency.}
+    \label{fig:0ms_latency}
+\end{subfigure}%
+\qquad
+\begin{subfigure}{.25\textwidth}
+   \centering
+   \includegraphics[width=\textwidth]{images/TCP_state_machine_40_ms.png}
+    \caption{TCP state transition graph with 40ms latency.}
+    \label{fig:40ms_latency}
+\end{subfigure}
+\qquad
+\begin{subfigure}{.25\textwidth}
+   \centering
+   \includegraphics[width=\textwidth]{images/RFC_Graph.png}
+    \caption{TCP state transition according to RFC 793.}
+    \label{fig:40ms_latency}
+\end{subfigure}
+\caption[short]{Comparison between measured state transitions and RFC 793.}
+\end{figure}
 
+We generated TCP state transition graphs with different latency values, from 0ms to 40ms, with 5ms steps. It is possible to notice that from a latency value of 10ms there is a slighly different shape in the connection closing phase. In particular:
+\begin{itemize}
+   \item With 0 ms latency, as shown in figure \ref{fig:0ms_latency}, the close phase of the connection goes through the \codeword{fin-wait-1} and \codeword{fin-wait-2} states (client side)
+   \item From a latency of 10ms onwards, as shown in figure \ref{fig:40ms_latency}, both the server and the client reach the \codeword{fin-wait-1} state, but then they both enter into the closing state, without passing through the \codeword{fin-wait-2} state.
+\end{itemize}
 
+This behaviour is clearly explained in the RFC 793\cite{RFC_793} at page 42. In the former case, it happens that the server sends the close packet (with the \codeword{FIN}), then the client receives it before closing the connection itself.
+In the latter case we have that due to the delay, the connection is closed simultaneously by both actors. None of them will receive the other FIN before sending its own FIN. For this reason, they both switch to fin-wait-1. When they receive each other FIN, they switch to closing, and after having received the ACK of the FIN, they go to the time-wait state.
 
+There is another small difference between the generated graph and the RFC one. The server, does not transition from listen to \codeword{syn-received}, but from closed to \codeword{syn-receive}. In the RFC graph there are other transitions not performed during the benchmark, related to cases such as the closing of a connection before the proper enstablishment.
 
+% todo probe effect? in this case not relevant I think, but how to mseasure it? probably overall time at each delay level?
+
+\iffalse
+Different behavious at:
+0, 5 : after enstablished, 2 different branches
+10 onwards no final timewait, fin-wait-2 skipped
+
+- Add the note that a delay has been needd after the bnechmark end
+\fi
 
 
 

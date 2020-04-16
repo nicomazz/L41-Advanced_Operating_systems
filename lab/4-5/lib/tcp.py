@@ -47,16 +47,13 @@ def graph_tcp(latency):
     set_latency(latency)
 
     tcp_state_change_script = """
-   fbt::syncache_add:entry {
-   }
-   fbt::syncache_expand:entry{
-   }
-   
+ /*
    fbt::tcp_do_segment:entry {
         trace((unsigned int)args[1]->th_seq);
         trace((unsigned int)args[1]->th_ack);
         trace(tcp_state_string[args[3]->t_state]);
     }
+    */
     fbt::tcp_state_change:entry {
         printf("{\\"timestamp\\": %u, \\"local_port\\": %u, \\"foreign_port\\": %u, \\"previous_tcp_state\\": \\"%s\\", \\"tcp_state\\": \\"%s\\"}", 
         walltimestamp,
@@ -92,6 +89,7 @@ def graph_tcp(latency):
     # Run the ipc-static benchmark
     benchmark_output = cmd("ipc/ipc-static -v -i tcp 2thread")
 
+    cmd("sleep 1")
     # The benchmark has completed - stop the DTrace instrumentation
     dtrace_thread.stop()
     dtrace_thread.join()
@@ -106,7 +104,7 @@ def graph_tcp(latency):
             value = json.loads(raw_value)
             # print(value)
             # JSON formatted string
-            if value['previous_tcp_state'] is not None and value['tcp_state'] is not None:
+            if 'previous_tcp_state' in value and 'tcp_state' in value:
                 from_state = value['previous_tcp_state'][6:]
                 to_state = value['tcp_state'][6:]
                 label = "server" if value["local_port"] == TARGET_PORT else "client"
@@ -116,7 +114,7 @@ def graph_tcp(latency):
             else:
                 print "String malformatted missing previous_tcp_state of tcp_state fields"
         except ValueError as e:  # stack trace
-            prec_f = "\n".join([i.replace('`', '+').split("+")[1] for i in raw_value.split('\n')[1:]][::-1])
+            prec_f = "\n".join([i.replace('`', '+').split("+")[1] for i in raw_value.split('\n')[1:2]][::-1])
             tcp_state_machine.add_edge(from_state, to_state,
                                        label=label + "\n({})".format(prec_f), color='green')
 
