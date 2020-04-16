@@ -82,3 +82,6 @@ dtrace -n 'fbt::tcp_do_segment:entry {trace((unsigned int)args[1]->th_seq);trace
 
 - [x] Add the TCP flags (SYN,ACK) to the graph. To do that, use `tcp_do_segment`, that is fired for each received package
 
+### things to write in the report
+
+

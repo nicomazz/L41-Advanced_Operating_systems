@@ -64,6 +64,9 @@ sorting=ynt
 
 \begin{abstract}
 
+   - state machine comparison with the RFC[] one manually setting differnet latencies (differences on the final sequence)
+   - analysis of the flow-control and congestion control mechanisms, plotting graphs with the congestion window, and analysing how the tcp state variable change in time.
+
 
 
 \end{abstract}
@@ -92,39 +95,25 @@ For the experiment, it is used the BeagleBone Black board with an open-source Fr
 
 The board mounts an SD card. However, it is not relevant for the test, as the benchmark is in-memory.
 
-\subsection{Test program}
-
-The benchmark consists of a program able to create two ends of an IPC object using different methodologies (pipes or sockets). The actors of the communication, in our case, are two threads: one that sends data, and the other that receives it. It is possible to set the buffer size for each write request, while the total size of the data sent is constant.
-
-
 \subsection{Methodology}
 
+The benchmark consists of a program able to create two ends of a TCP socket over the loopback interface. The program is statically linked, so we can neglet dynamic linking performance overhead. The program opens a socket using the \codeword{socket(2)} system call, bind it to a specifc port, and listen for new connections. The receiving end similarly opens a socket, and uses \codeword{connect(2)} to connect with the other endpoint at the same port. During the benchmark, a fixed size amount of data is transferred from the sender to the receiver. Afterwards, the \codeword{close(2)} system call initiate the closing phase.
 
-In the experimental setup, the size of the total data sent by IPC is kept constant at 16MB. Those data are sent in chunks of different size. The total IPC size must be a multiple of buffer size. We refer to the size of those chunks only as \textit{buffer size}.
-The benchmark points three IPC modes: 
+IPFW\cite{IPFW}, the firewall used, provides DUMMYNET, that allows to shape the traffic. In this experiment, IPFW is used to generate two pipes, and sent the latency in each one of those. The pipes are used to filter the traffic, and selectively apply the delay only to the traffic we care abot.
+The actors of the communication, in our case, are two threads: one that sends data, and the other that receives it. The dimension of the buffer passed to the \codeword{write(2)} system call are constant to 128KB.
+The total amount of data transferred is 16MB for each benchmark run.
+
+The loopback Maximum Transmission Unit (MTU) is manually set to 1,500 bytes before each test, to avoid larger values due to the local nature of the test, and resemble LAN or WAN results.
+
+DTrace is used for most performance measurements. In particualar, we use the following providers:
 \begin{itemize}
-    \item \codeword{pipes}, created with the \codeword{pipe()} function.
-    \item \codeword{sockets}, created with the \codeword{socketpair()} function.
-    \item \codeword{sockets} with the two options \codeword{SO_SNDBUF} and \codeword{SO_RCVBUF} set. Those options adjust the kernel buffer used to send and receive. In our particular case, the maximum buffer size is set trough the sysctl variable \codeword{kern.ipc.maxsockbuf} in a way to always have enough space to match the buffersize set in the user-space benchmark.
+   \item Function Boundary Tracing (FBT) provider. We are using probes on specific functions. There are also TCP generic ones, portable across different systems, but they do not provide the needed number of parameters to make all the analysis. The output from the tracing of the entire kernel's function is then visualized in Perfetto\cite{noauthor_perfetto_nodate}, to graphically inspect for futher interesting behaviours.
+   \item Profile provider. It fires a probe at a given frequency. We use it to aggregate the results of \codeword{stack()}, and see where most of the time is spent. 
 \end{itemize}
+The verbose benchmark output, containing the IPC loop duration measured from the program, is then used to evaluate the probe-effect caused by DTrace.
 
-The performance measurement is possible in several ways. Since our focus is only on the IPC transfer loop, we would skip measuring other non-related parts of the program. The options are:
-\begin{itemize}
-    \item \codeword{time} utility. However, this does not provide high precision and measures the entire program execution
-    \item Benchmark output in verbose mode. The benchmark has an option to output to stdout additional information, such as the time measured between the beginning and the end of the IPC loop.
-    \item DTrace. To have an even finer-grained time measure, we can instrument the probe fired at the return of the syscall used to get the time (called before the IPC loop), and the entry of the same function (called after the IPC loop)
-\end{itemize}
-The choice falls on DTrace for most performance measurements, and on the benchmark output for evaluating the probe effect of DTrace. 
-To further investigate the causes of the inflexion points in the performance graph, several other statistics are gathered both from the kernel and micro-architectural point of view.
 
-Probe effect evaluation uses the difference between the run-time with and without DTrace running, from the benchmark output.
-
-All the benchmark runs are executed 11 times for each parameter value, and the first one is dropped. In each graph, it is possible to see the error as a vertical line. However, in almost all cases, this error is negligible, highlighting a controlled benchmarking environment. The value on the graph is the median of the 10 measurements.
-
-We used various DTrace provider in the investigation. The \codeword{profile} provider made possible to understand where most of the time was spent, analyzing the frequency of each \codeword{stack()}. It made possible to identify where data were copied, and create figure \ref{fig:uiomove}. However, due to the board limitations, the profiling frequency was very limited, always below 30Hz. The Function Boundary Provider made possible to visualize the entire execution in Perfetto\cite{noauthor_perfetto_nodate}. The \codeword{sched} provider allowed us to investigate sleeps and wake-ups events.
-
-In addition to kernel tracing, we also make micro-architectural considerations using performance monitoring counters (PMC). Those are low-level processor facilities that allow the programmer to get data about transparent details such as instruction count memory reads and writes, and various cache misses. Particular importance is given to AXI transactions, that are memory accesses against DRAM that causes particular slow down. Those transactions are more frequent when L1 and L2 caches are not enough.
-Finally, the effect of PMCs monitoring overhead is evaluated with a comparison to the baseline.
+All the benchmark runs are executed 11 times for each parameter value, and the first one is dropped. In each graph, it is possible to see the error as a vertical line. However, in almost all cases, this error is negligible, highlighting a controlled benchmarking environment. The main value on the graph is the median of the 10 measurements.
 
 
 \subsection{Limitations}
@@ -135,9 +124,6 @@ During the tracing, several other processes were running, and this might have in
     \item A Jupyter notebook
 \end{itemize}
 
-However, the background situation was the same for all the benchmarks, and each measurement is executed eleven times, discarding the first one. The test is focused on the statically linked binary version, so we neglect the dynamically linked one.
-
-
 
 
 \section{Results and discussion}
@@ -146,13 +132,11 @@ However, the background situation was the same for all the benchmarks, and each 
 
 
 
-\subsection{Sockets}
 
 
-\subsection{Read/write behaviour}
 
 
-\section{Probe effect}
+\subsection{Probe effect}
 
 \section{Conclusions}
 
