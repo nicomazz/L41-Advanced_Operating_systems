@@ -47,16 +47,13 @@ def graph_tcp(latency):
     set_latency(latency)
 
     tcp_state_change_script = """
-   fbt::syncache_add:entry {
-   }
-   fbt::syncache_expand:entry{
-   }
-   
+ /*
    fbt::tcp_do_segment:entry {
         trace((unsigned int)args[1]->th_seq);
         trace((unsigned int)args[1]->th_ack);
         trace(tcp_state_string[args[3]->t_state]);
     }
+    */
     fbt::tcp_state_change:entry {
         printf("{\\"timestamp\\": %u, \\"local_port\\": %u, \\"foreign_port\\": %u, \\"previous_tcp_state\\": \\"%s\\", \\"tcp_state\\": \\"%s\\"}", 
         walltimestamp,
@@ -75,6 +72,7 @@ def graph_tcp(latency):
     def simple_out(raw_value):
         values.append(raw_value)
 
+
     # Create a seperate thread to run the DTrace instrumentation
     dtrace_thread = DTraceConsumerThread(tcp_state_change_script,
                                          out_func=simple_out,
@@ -82,7 +80,7 @@ def graph_tcp(latency):
                                          chewrec_func=lambda v: None,
                                          walk_func=None,
                                          sleep=1)
-
+    cmd("sysctl net.inet.tcp.hostcache.purgenow=1")
     # Start the DTrace instrumentation
     dtrace_thread.start()
 
@@ -92,6 +90,7 @@ def graph_tcp(latency):
     # Run the ipc-static benchmark
     benchmark_output = cmd("ipc/ipc-static -v -i tcp 2thread")
 
+    cmd("sleep 1")
     # The benchmark has completed - stop the DTrace instrumentation
     dtrace_thread.stop()
     dtrace_thread.join()
@@ -106,7 +105,7 @@ def graph_tcp(latency):
             value = json.loads(raw_value)
             # print(value)
             # JSON formatted string
-            if value['previous_tcp_state'] is not None and value['tcp_state'] is not None:
+            if 'previous_tcp_state' in value and 'tcp_state' in value:
                 from_state = value['previous_tcp_state'][6:]
                 to_state = value['tcp_state'][6:]
                 label = "server" if value["local_port"] == TARGET_PORT else "client"
@@ -116,7 +115,7 @@ def graph_tcp(latency):
             else:
                 print "String malformatted missing previous_tcp_state of tcp_state fields"
         except ValueError as e:  # stack trace
-            prec_f = "\n".join([i.replace('`', '+').split("+")[1] for i in raw_value.split('\n')[1:]][::-1])
+            prec_f = "\n".join([i.replace('`', '+').split("+")[1] for i in raw_value.split('\n')[1:2]][::-1])
             tcp_state_machine.add_edge(from_state, to_state,
                                        label=label + "\n({})".format(prec_f), color='green')
 
@@ -182,10 +181,10 @@ def benchmark_tcp_bandwith(latencies=[], flags="", dtrace_script=speed_benchmark
     for latency in latencies:
         set_latency(latency)
         if not quiet: print("Latency: {}".format(latency))
-
         for i in range(trials):
-            # !!! -B flag removed
-            ipc_cmd = "ipc/ipc-static -i tcp -B -q {} 2thread".format(flags)
+            cmd("sysctl net.inet.tcp.hostcache.purgenow=1")
+
+            ipc_cmd = "ipc/ipc-static -i tcp -B -b 1048576 -q {} 2thread".format(flags)
             output = cmd(ipc_cmd)
             program_outputs.append(str("\n".join(output)))
 
@@ -258,7 +257,7 @@ fbt::tcp_do_segment:entry
 """
 
 
-def benchmark_variables(latency=0, flags="", output_name=""):
+def benchmark_variables(latency=5, flags="", output_name=""):
     return benchmark_tcp_bandwith(
         latencies=[latency],
         dtrace_script=wnd_cwnd_sshth,
@@ -304,7 +303,7 @@ def compute_bandwidth(times, seq):
     for i in range(len(times) - gap - 1):
         dq = float(seq[i + gap] - seq[i])
         dt = float(times[i + gap] - times[i])
-        bandwidth.append(dq * 1e6 / dt)
+        bandwidth.append(max(0,dq * 1e6 / dt))
 
     for i in range(gap):
         bandwidth.append(bandwidth[-1])
@@ -318,7 +317,7 @@ def avg(l):
 def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=40):
     tmp = extract_tcp_variables(input_name)
     tmp = filter_source(tmp, TARGET_PORT)
-    variables = filter_resolution(tmp)
+    variables = tmp # filter_resolution(tmp)
 
     time = variables["Time"]
     seq = variables["Seq"]
@@ -341,6 +340,23 @@ def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=40):
     )
 
 
-def plot_variables(input_name, variables=["Seq", "Ack", "wnd", "Cwnd", "sshresh"]):
-    variables = extract_tcp_variables(input_name)
-    xvs = variables["time"]
+def plot_variable(input_name, title=None, var=["Seq", "Ack", "wnd", "cwnd", "sshresh"]):
+    tmp = extract_tcp_variables(input_name)
+    tmp = filter_source(tmp, TARGET_PORT)
+    variables = tmp  # filter_resolution(tmp)
+
+    time = variables["Time"]
+    yvs = variables[var]
+    offset = time[0]
+    time = [i - offset for i in time]
+    max_time = time[-1] / 1e9
+    x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
+
+    print("Data prepared. Now plotting..")
+    return plot_graph(
+        xvs=[t / 1e9 for t in time],
+        yvs=yvs,
+        trials=1,
+        title=title,
+        x_ticks=x_ticks
+    )

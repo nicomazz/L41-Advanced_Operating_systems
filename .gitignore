@@ -8,3 +8,4 @@ The*
 *.pyc
 **/venv
 **/.idea
+*.pdf

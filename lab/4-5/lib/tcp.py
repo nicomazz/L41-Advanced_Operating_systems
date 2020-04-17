@@ -72,6 +72,7 @@ def graph_tcp(latency):
     def simple_out(raw_value):
         values.append(raw_value)
 
+
     # Create a seperate thread to run the DTrace instrumentation
     dtrace_thread = DTraceConsumerThread(tcp_state_change_script,
                                          out_func=simple_out,
@@ -79,7 +80,7 @@ def graph_tcp(latency):
                                          chewrec_func=lambda v: None,
                                          walk_func=None,
                                          sleep=1)
-
+    cmd("sysctl net.inet.tcp.hostcache.purgenow=1")
     # Start the DTrace instrumentation
     dtrace_thread.start()
 
@@ -180,10 +181,10 @@ def benchmark_tcp_bandwith(latencies=[], flags="", dtrace_script=speed_benchmark
     for latency in latencies:
         set_latency(latency)
         if not quiet: print("Latency: {}".format(latency))
-
         for i in range(trials):
-            # !!! -B flag removed
-            ipc_cmd = "ipc/ipc-static -i tcp -B -q {} 2thread".format(flags)
+            cmd("sysctl net.inet.tcp.hostcache.purgenow=1")
+
+            ipc_cmd = "ipc/ipc-static -i tcp -B -b 1048576 -q {} 2thread".format(flags)
             output = cmd(ipc_cmd)
             program_outputs.append(str("\n".join(output)))
 
@@ -256,7 +257,7 @@ fbt::tcp_do_segment:entry
 """
 
 
-def benchmark_variables(latency=0, flags="", output_name=""):
+def benchmark_variables(latency=5, flags="", output_name=""):
     return benchmark_tcp_bandwith(
         latencies=[latency],
         dtrace_script=wnd_cwnd_sshth,
@@ -302,7 +303,7 @@ def compute_bandwidth(times, seq):
     for i in range(len(times) - gap - 1):
         dq = float(seq[i + gap] - seq[i])
         dt = float(times[i + gap] - times[i])
-        bandwidth.append(dq * 1e6 / dt)
+        bandwidth.append(max(0,dq * 1e6 / dt))
 
     for i in range(gap):
         bandwidth.append(bandwidth[-1])
@@ -316,7 +317,7 @@ def avg(l):
 def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=40):
     tmp = extract_tcp_variables(input_name)
     tmp = filter_source(tmp, TARGET_PORT)
-    variables = filter_resolution(tmp)
+    variables = tmp # filter_resolution(tmp)
 
     time = variables["Time"]
     seq = variables["Seq"]
@@ -339,6 +340,24 @@ def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=40):
     )
 
 
-def plot_variables(input_name, variables=["Seq", "Ack", "wnd", "Cwnd", "sshresh"]):
-    variables = extract_tcp_variables(input_name)
-    xvs = variables["time"]
+def plot_variable(input_name,var, title=None, ax = None):
+    tmp = extract_tcp_variables(input_name)
+    tmp = filter_source(tmp, TARGET_PORT)
+    variables = tmp  # filter_resolution(tmp)
+
+    time = variables["Time"]
+    yvs = variables[var]
+    offset = time[0]
+    time = [i - offset for i in time]
+    max_time = time[-1] / 1e9
+    x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
+
+    print("Data prepared. Now plotting..")
+    return plot_graph(
+        xvs=[t / 1e9 for t in time],
+        yvs=yvs,
+        trials=1,
+        title=title,
+        axis = ax,
+        x_ticks=x_ticks
+    )

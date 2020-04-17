@@ -67,7 +67,8 @@ sorting=ynt
 
    - state machine comparison with the RFC[] one manually setting differnet latencies (differences on the final sequence)
    - analysis of the flow-control and congestion control mechanisms, plotting graphs with the congestion window, and analysing how the tcp state variable change in time.
-
+   - behaviour of auto-resizing sockets
+   - the connection between Latency, RTT and bandwidth
 
 
 \end{abstract}
@@ -103,7 +104,7 @@ The board mounts an SD card. However, it is not relevant for the test, as the be
 The benchmark consists of a program able to create two ends of a TCP socket over the loopback interface. The program is statically linked, so we can neglet dynamic linking performance overhead. The program opens a socket using the \codeword{socket(2)} system call, bind it to a specifc port, and listen for new connections. The receiving end similarly opens a socket, and uses \codeword{connect(2)} to connect with the other endpoint at the same port. During the benchmark, a fixed size amount of data is transferred from the sender to the receiver. Afterwards, the \codeword{close(2)} system call initiate the closing phase.
 
 IPFW\cite{IPFW}, the firewall used, provides DUMMYNET, that allows to shape the traffic. In this experiment, IPFW is used to generate two pipes, and sent the latency in each one of those. The pipes are used to filter the traffic, and selectively apply the delay only to the traffic we care abot. We then generate the state transition graph at different levels of delays, to see the differences.
-The actors of the communication, in our case, are two threads: one that sends data, and the other that receives it. The dimension of the buffer passed to the \codeword{write(2)} system call are constant to 128KB.
+The actors of the communication, in our case, are two threads: one that sends data, and the other that receives it. The dimension of the buffer passed to the \codeword{write(2)} system call are 128KB for the state-machine generation, and 1MB for the remaining graphs.
 The total amount of data transferred is 16MB for each benchmark run.
 
 The loopback Maximum Transmission Unit (MTU) is manually set to 1,500 bytes before each test. In this it is possible avoid larger values that might have been caused to the local nature of the test, resembling real LAN or WAN results.
@@ -114,6 +115,8 @@ DTrace is used for most performance measurements. In particualar, we use the fol
    \item Function Boundary Tracing (FBT) provider. We are using probes on specific functions. There are also TCP generic ones, portable across different systems, but they do not provide the needed number of parameters to make all the analysis. The output from the tracing of the entire kernel's function is then visualized in Perfetto\cite{noauthor_perfetto_nodate}, to graphically inspect for futher interesting behaviours.
    \item Profile provider. It fires a probe at a given frequency. We use it to aggregate the results of \codeword{stack()}, and see where most of the time is spent. 
 \end{itemize}
+
+After each benchmark run, two seconds have been added before stopping the DTrace instumentation, to make sure to capture any final timing related event. Without those, the state transition graphs were sometimes different: often the time-wait phase was not reached, because it was entered after the benchmark end, when the DTrace instrumentation was not running anymore.
 
 The verbose benchmark output, containing the IPC loop duration measured from the program, is then used to evaluate the probe-effect caused by DTrace.
 
@@ -174,16 +177,30 @@ There is another small difference between the generated graph and the RFC one. T
 
 % todo probe effect? in this case not relevant I think, but how to mseasure it? probably overall time at each delay level?
 
-\iffalse
-Different behavious at:
-0, 5 : after enstablished, 2 different branches
-10 onwards no final timewait, fin-wait-2 skipped
 
-- Add the note that a delay has been needd after the bnechmark end
-\fi
+\subsection{Bandwidth for each imposed latency}
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=11cm]{images/tcp_bandwidth.png}
+  \caption{Imposed DUMMYNET lantecy vs bandwidth, both with and without socket-buffer auto-resizing}
+   \label{fig:bandwidth}
+\end{figure}
 
+Figure\ref{fig:bandwidth} shows the bandwidth versus the DUMMYNET-imposed latency. We can notice that the bandwidth decrease is not linear. It remains almost constant until a latency of 5ms, when if suddently drops at 10ms. At 20ms, it halves again, to then stay stationary from 30ms onwards.
+The socket-buffer autoresizing does not always result in a performance increase. We can notice two phases:
+\begin{itemize}
+   \item With low latencies, until 5ms, the auto-resizing policy allows an higher bandwidth.
+   \item From 10ms to 25ms, the benchmark without autoresizing is always slighly faster than the statically sized one, but comparable.
+   \item From 30ms onwards the statically sized one allows a bandwidth more than double the autosized one. %todo find the reson!
+\end{itemize}
 
+There can be multiple reason for this trend. An increased latency limits the congestion window grow, and as a consequence the overall bandwidth, because the "final" transfer rate will be reached more slowly.
+% todo write more here!
+
+\subsection{Time-bandwidth graph}
+
+For the following graphs, the latency has been manually set to 5 ms
 
 \subsection{Probe effect}
 

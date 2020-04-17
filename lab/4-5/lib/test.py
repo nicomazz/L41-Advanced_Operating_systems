@@ -209,7 +209,7 @@ def plot_graph(xvs,  # x values
 
     if x_ticks is None:
         x_ticks = xvs
-    ax.ticklabel_format(useOffset=False)
+    # ax.ticklabel_format(useOffset=False)
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(["{}".format(i) for i in x_ticks])
 
