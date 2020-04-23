@@ -174,7 +174,7 @@ def benchmark_tcp_bandwith(latencies=[], flags="", dtrace_script=speed_benchmark
 
     # Start the DTrace instrumentation
     dtrace_thread.start()
-
+    cmd("sleep 2")
     program_outputs = []
 
     # Display header to indicate that the benchmarking has started
@@ -188,6 +188,7 @@ def benchmark_tcp_bandwith(latencies=[], flags="", dtrace_script=speed_benchmark
             output = cmd(ipc_cmd)
             program_outputs.append(str("\n".join(output)))
 
+    cmd("sleep 2")
     # The benchmark has completed - stop the DTrace instrumentation
     dtrace_thread.stop()
     dtrace_thread.join()
@@ -206,7 +207,6 @@ def benchmark_tcp_bandwith(latencies=[], flags="", dtrace_script=speed_benchmark
         save_output(result, output_name)
 
     return result
-
 
 def plot_tcp_bandwidth(input_data_file,
                        title=None,
@@ -241,26 +241,34 @@ def plot_tcp_bandwidth(input_data_file,
     )
 
 
-wnd_cwnd_sshth = """
+tcp_variables = {
+    "snd_cwnd": "args[3]->snd_cwnd",
+    "snd_wnd": "args[3]->snd_wnd",
+    "th_seq": "(unsigned int)args[1]->th_seq",
+    "th_dport": "htons(args[1]->th_dport)",
+    "timestamp": "vtimestamp",
+    "th_sport": "htons(args[1]->th_sport)",
+    "th_ack": "(unsigned int)args[1]->th_ack",
+    "snd_ssthresh": "args[3]->snd_ssthresh"
+}
+
+print_all_variables_d_script = """
+#pragma D option bufsize=3M
+#pragma D option bufresize=manual
+
 fbt::tcp_do_segment:entry
 /args[1]->th_sport == htons(10141) || args[1]->th_dport == htons(10141)/
 { 
-    printf("source:%d ", htons(args[1]->th_sport));
-    printf("dest:%d ", htons(args[1]->th_dport));
-    printf("Seq:%d ", (unsigned int)args[1]->th_seq);
-    printf("Ack:%d ", (unsigned int)args[1]->th_ack);
-    printf("Time:%d ", timestamp);
-    printf("wnd:%d ", args[3]->snd_wnd);
-    printf("cwnd:%d ", args[3]->snd_cwnd);
-    printf("ssthresh:%d ", args[3]->snd_ssthresh);
+""" + "\n".join(
+    ["printf(\"{}:%d\",{});".format(key, value) for key, value in tcp_variables.items()]) + """
 }
 """
 
 
-def benchmark_variables(latency=5, flags="", output_name=""):
+def benchmark_variables(latency=10, flags="", output_name=""):
     return benchmark_tcp_bandwith(
         latencies=[latency],
-        dtrace_script=wnd_cwnd_sshth,
+        dtrace_script=print_all_variables_d_script,
         trials=1,
         flags=flags,
         output_name=output_name)
@@ -276,15 +284,19 @@ def extract_tcp_variables(input_name):
     return res
 
 
-def filter_source(d, src):
-    source = d["source"]
+# d is a dictionary of arrays
+def filter_input(d, attr, src):
+    source = d[attr]
     for key in d:
         d[key] = [d[key][i] for i in range(len(d[key])) if source[i] == src]
     return d
 
 
-def filter_resolution(d, min_dt=1e5):
-    times = d["Time"]
+MINIMUM_RESOLUTION = 1e4
+
+
+def filter_resolution(d, min_dt=MINIMUM_RESOLUTION):
+    times = d["timestamp"]
     prev_t = times[0]
     res = defaultdict(list)
     for i in range(len(times)):
@@ -296,67 +308,174 @@ def filter_resolution(d, min_dt=1e5):
     return res
 
 
-def compute_bandwidth(times, seq):
-    assert len(times) == len(seq) and len(times) > 1
-    bandwidth = []
-    gap = 1
-    for i in range(len(times) - gap - 1):
-        dq = float(seq[i + gap] - seq[i])
-        dt = float(times[i + gap] - times[i])
-        bandwidth.append(max(0,dq * 1e6 / dt))
+ONE_MS = 1000000
 
-    for i in range(gap):
-        bandwidth.append(bandwidth[-1])
-    return bandwidth
+
+def ms(n): return n * ONE_MS
 
 
 def avg(l):
     return sum(l) / len(l)
 
 
-def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=40):
-    tmp = extract_tcp_variables(input_name)
-    tmp = filter_source(tmp, TARGET_PORT)
-    variables = tmp # filter_resolution(tmp)
+def compute_bandwidth(times, seq, mean_duration=ms(25)):
+    assert len(times) == len(seq) and len(times) > 1
+    offset = times[0]
+    times = [i - offset for i in times]
 
-    time = variables["Time"]
-    seq = variables["Seq"]
-    bandwidth = compute_bandwidth(time, seq)
-    offset = time[0]
-    time = [i - offset for i in time]
-    max_time = time[-1] / 1e9
-    divisions = 10
+    tmp_times = []
+    tmp_bw = []
+    for i in range(len(times) - 1):
+        dq = float(seq[i + 1] - seq[i])
+        if dq < 0:
+            continue
+        dt = float(times[i + 1] - times[i])
+        tmp_times.append(times[i] + dt / 2)
+        tmp_bw.append(dq * 1e6 / dt)
+
+    max_time = times[-1]
+    inx = 0
+    max_val = 0
+    final_times = []
+    final_bw = []
+    ntimes = len(tmp_times)
+    for i in range(max_time / mean_duration - ms(500) / mean_duration):
+        max_val += mean_duration
+        att_bwd = []
+        while inx < ntimes and tmp_times[inx] < max_val:
+            att_bwd.append(tmp_bw[inx])
+            inx += 1
+        if len(att_bwd) > 0:
+            final_times.append(max_val)
+            final_bw.append(avg(att_bwd))
+    print("bandwidth calculated")
+    return final_times, final_bw
+
+
+def easy_bandwidth(times, seq, gamma=0.05):
+    offset = times[0]
+    times = [i - offset for i in times]
+
+    time_seq = zip(times, seq)
+    dt_time = 1e4
+    prec = time_seq[0]
+    prec_bw = 1
+    rt, rb = [], []
+    for t, s in time_seq[1:]:
+        dt = float(t - prec[0])
+
+        if dt < dt_time:
+            continue
+        dq = float(s - prec[1])
+        if dq < 0:
+            continue
+
+        prec = (t, s)
+
+        bw = dq * 1e6 / dt
+        prec_bw = (prec_bw * (1.0 - gamma)) + bw * gamma
+
+        rt.append(t)
+        rb.append(prec_bw)
+        print(prec_bw)
+
+    # prec = (prec * (1.0 - gamma)) + bw * gamma
+
+    return rt[1::2], rb[1::2]
+
+
+def smooth_avg(xvs,yvs, factor = 20, times = 10):
+    for _ in range(times):
+        yvs = [avg(yvs[i:i+factor]) for i in range(len(yvs)-factor)]
+        yvs += [yvs[-1]] * factor
+    return xvs,yvs
+
+def copied_bandwidth(times, seq, time_diffs=0.0001):
+
+    final_len = 0
+    TIME_SPLIT = 150
+    cur_time = times[0]  # float(ENTRIES[0]["Time"])
+    cur_seq = seq[0]  # float(ENTRIES[0]["Seq"])
+    bws = []
+    unit_ctr = 0
+    for e in zip(times, seq):
+        diff = ((float(e[0]) - cur_time) / 1000000000)
+        if diff > time_diffs:
+            bws.append(e)
+            cur_time = float(e[0])
+
+    bws = zip(bws[::2], bws[1::2])
+
+    tps = []
+    for e in bws:
+        tp = (float(e[1][1]) - float(e[0][1])) / (float(e[1][0]) - float(e[0][0]))
+        tps.append(max(tp, 0))
+
+    times = [list(b)[1][0] for b in bws]
+    times = [(float(t) - float(times[0])) / 1000000000 for t in times]
+    return smooth_avg(times, tps)
+
+
+## resolution in milliseconds
+def plot_tcp_bandwidth_across_time(input_name, title=None, resolution=100, sender_side=True):
+    tmp = extract_tcp_variables(input_name)
+    initial_size = len(tmp["timestamp"])
+    if sender_side:
+        tmp = filter_input(tmp, "th_dport", TARGET_PORT)
+    else:
+        tmp = filter_input(tmp, "th_sport", TARGET_PORT)
+    assert len(tmp["timestamp"]) < initial_size
+    variables = tmp
+
+    time = variables["timestamp"]
+    maxt = time[-1]
+    time = [t-maxt for t in time]
+
+    seq = variables["th_seq"]
+    xvs, yvs = copied_bandwidth(time,seq) #easy_bandwidth(time, seq)  # compute_bandwidth(time, seq)
+    max_time = xvs[-1] / 1e9
     x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
 
-    bandwidth = [avg(bandwidth[i:i + resolution]) for i in range(int(len(bandwidth) / resolution))]
-    bandwidth.append(bandwidth[-1])
     print("Data prepared. Now plotting..")
     return plot_graph(
-        xvs=[t / 1e9 for t in time[::resolution]],
-        yvs=bandwidth,
+        xvs=[t / 1e9 for t in xvs],
+        yvs=yvs,
         trials=1,
         title=title,
         x_ticks=x_ticks
     )
 
 
-def plot_variable(input_name, title=None, var=["Seq", "Ack", "wnd", "cwnd", "sshresh"]):
+def plot_variable(input_name, var, title=None, ax=None, sender_side=True):
     tmp = extract_tcp_variables(input_name)
-    tmp = filter_source(tmp, TARGET_PORT)
+    if sender_side:
+        tmp = filter_input(tmp, "th_dport", TARGET_PORT)
+    else:
+        tmp = filter_input(tmp, "th_sport", TARGET_PORT)
     variables = tmp  # filter_resolution(tmp)
 
-    time = variables["Time"]
+    time = variables["timestamp"]
     yvs = variables[var]
     offset = time[0]
     time = [i - offset for i in time]
     max_time = time[-1] / 1e9
     x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
 
-    print("Data prepared. Now plotting..")
+    print("Data prepared. Now plotting {}..".format(var))
+
     return plot_graph(
-        xvs=[t / 1e9 for t in time],
+        label=var,
+        xvs=[t/1e9 for t in time],
         yvs=yvs,
         trials=1,
         title=title,
+        axis=ax,
         x_ticks=x_ticks
     )
+
+
+def plot_all_variables(input_name):
+    ax = None
+    for var, _ in tcp_variables.items():
+        ax = plot_variable(input_name, var, ax=ax)
+    return ax

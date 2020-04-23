@@ -146,6 +146,9 @@ def get_default_color(label):
         ("local -s", 'limegreen'),
         ("local", 'darkorange'),
         ("pipe", 'cornflowerblue'),
+        ("snd_cwnd", 'limegreen'),
+        ("snd_ssthresh", 'darkorange'),
+        ("pipe", 'cornflowerblue'),
         ("tcp -s", 'darkorange'),
         ("tcp", 'cornflowerblue')
     ]
