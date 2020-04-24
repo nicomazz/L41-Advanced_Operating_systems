@@ -1,10 +1,17 @@
 import json
+import re
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import re
-from collections import defaultdict
-from dtrace import *
+import imp
+
+try:
+    imp.find_module('dtrace')
+    from dtrace import *
+except ImportError:
+    print("DTrace module missing!")
 
 
 def dummy_f(cmd):
@@ -38,7 +45,8 @@ def save_output(result, output_name):
     return result
 
 
-def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="", quiet=False):
+def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="",
+              quiet=False):
     values = []
     aggr_dict = defaultdict(int)
 
@@ -98,7 +106,9 @@ def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="", quiet=Fa
     return result
 
 
-def benchmark_single_output_aggregation(flags, trials, buff_sizes, dtrace_script, output_name="", quiet=False):
+def benchmark_single_output_aggregation(flags, trials, buff_sizes,
+                                        dtrace_script, output_name="",
+                                        quiet=False):
     total_res = {
         "buffer_sizes": [],
         "output": [],
@@ -139,10 +149,18 @@ def benchmark_single_output_aggregation(flags, trials, buff_sizes, dtrace_script
 
 
 def get_default_color(label):
+    if label is None: return None
+
     dc = [
         ("local -s", 'limegreen'),
         ("local", 'darkorange'),
-        ("pipe", 'cornflowerblue')
+        ("pipe", 'cornflowerblue'),
+        ("snd_cwnd", 'limegreen'),
+        ("snd_ssthresh", 'darkorange'),
+        ("pipe", 'cornflowerblue'),
+        ("tcp -s", 'darkorange'),
+        ("tcp", 'cornflowerblue'),
+        ("window", 'red')
     ]
     for (k, v) in dc:
         if k in label:
@@ -161,7 +179,10 @@ def plot_graph(xvs,  # x values
                x_label=None,
                color=None,
                linestyle=None,
-               figsize=(15,6)
+               figsize=(15, 6),
+               x_ticks=None,
+               alpha=1.0,
+               linewidth=None
                ):
     print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
 
@@ -186,10 +207,14 @@ def plot_graph(xvs,  # x values
 
     if axis is None:
         fig = plt.figure(figsize=figsize)
-        ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label, color=color, linestyle=linestyle)
-    else:
-        ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis, label=label, color=color,
-                               linestyle=linestyle)
+    #     ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label,
+    #                            color=color, linestyle=linestyle, alpha=alpha,
+    #                            linewidth=linewidth)
+    # else:
+    ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis,
+                           label=label, color=color, alpha=alpha,
+                           linewidth=linewidth,
+                           linestyle=linestyle)
 
     if title:
         plt.title(title)  # 'io-static {} performance'.format(label))
@@ -198,9 +223,14 @@ def plot_graph(xvs,  # x values
     if x_label:
         ax.set_xlabel(x_label)
 
-    ax.set_xscale('log')
-    ax.set_xticks(xvs)
-    ax.set_xticklabels([i / 1024 for i in xvs], rotation=0)
+    if len(xvs) >= 2 and xvs[1] == xvs[0] ** 2:
+        ax.set_xscale('log')
+
+    if x_ticks is None:
+        x_ticks = xvs
+    # ax.ticklabel_format(useOffset=False)
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(["{}".format(i) for i in x_ticks])
 
     plt.grid('on', axis='x')
     plt.grid('on', axis='y')
@@ -213,6 +243,12 @@ def plot_graph(xvs,  # x values
     return ax
 
 
+def read_json_file(file_name):
+    with open(file_name, 'r') as f:
+        content = f.read()
+        return json.loads(content)
+
+
 def plot_aggregation(input_data_file,
                      title=None,
                      label=None,
@@ -223,10 +259,7 @@ def plot_aggregation(input_data_file,
                      x_label=None,
                      figsize=None):
     # in aggregations the output is one line yes and one no
-
-    with open(input_data_file, 'r') as f:
-        content = f.read()
-        data = json.loads(content)
+    data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
     buffer_sizes = data['buffer_sizes']
@@ -261,9 +294,7 @@ def plot_bandwith(input_data_file,
                   x_label=None
                   ):
     # Plot the read performance (IO bandwidth against buffer size with error bars)
-    with open(input_data_file, 'r') as f:
-        content = f.read()
-        data = json.loads(content)
+    data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
     buffer_sizes = data['buffer_sizes']
@@ -271,7 +302,8 @@ def plot_bandwith(input_data_file,
     read_performance_values = [int(i) for i in data['output']]
 
     # Compute the IO bandwidth in KiBytes/sec
-    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
+    io_bandwidth_values = convert_in_bandwith(read_performance_values,
+                                              total_size)
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -306,16 +338,15 @@ def plot_pmc(input_data_file,
              figsize=None,
              linestyle='-'):
     # Plot the read performance (IO bandwidth against buffer size with error bars)
-    with open(input_data_file, 'r') as f:
-        content = f.read()
-        data = json.loads(content)
+    data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
     buffer_sizes = data['buffer_sizes']
     total_size = buffer_sizes[-1]  # 16*1024*1024
     program_outs = data['program_outputs']
 
-    read_performance_values = [float(extract_pmc_val(i, pmc_to_plot)) for i in program_outs]
+    read_performance_values = [float(extract_pmc_val(i, pmc_to_plot)) for i in
+                               program_outs]
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -332,6 +363,14 @@ def plot_pmc(input_data_file,
     )
 
 
+def latency_name(lat):
+    return "all_variables_{}.json".format(lat)
+
+
+def latency_name_s(lat):
+    return "all_variables_{}_s.json".format(lat)
+
+
 def plot_time(input_data_file,
               title=None,
               label=None,
@@ -343,19 +382,19 @@ def plot_time(input_data_file,
               dotted=True
               ):
     # Plot the read performance (IO bandwidth against buffer size with error bars)
-    with open(input_data_file, 'r') as f:
-        content = f.read()
-        data = json.loads(content)
+    data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
     buffer_sizes = data['buffer_sizes']
     total_size = buffer_sizes[-1]  # 16*1024*1024
     program_outs = data['program_outputs']
 
-    read_performance_values = [float(extract_pmc_val(i, "time"))*1e9 for i in program_outs]
+    read_performance_values = [float(extract_pmc_val(i, "time")) * 1e9 for i in
+                               program_outs]
 
     # Compute the IO bandwidth in KiBytes/sec
-    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
+    io_bandwidth_values = convert_in_bandwith(read_performance_values,
+                                              total_size)
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -406,14 +445,35 @@ def plot_cnt_graph(xvs,  # x values
     return ax
 
 
-def benchmark_without_dtrace(name_prefix, script="BEGIN{}", additional_flags = ""):
+def benchmark_without_dtrace(name_prefix, script="BEGIN{}",
+                             additional_flags=""):
     buffer_sizes = buffers_up_to_16MB()
     trials = 10
     modes = ["local", "local -s", "pipe"]
 
     for mode in modes:
-        flags = "-i {} -v {}".format(mode,additional_flags)
-        out_name = "{}_{}{}.json".format(name_prefix, mode,additional_flags)
+        flags = "-i {} -v {}".format(mode, additional_flags)
+        out_name = "{}_{}{}.json".format(name_prefix, mode, additional_flags)
+
+        print "mode: ", mode, "flags:", flags, "out_name:", out_name
+
+        res = benchmark(
+            flags=flags,
+            trials=trials,
+            output_name=out_name,
+            buff_sizes=buffer_sizes,
+            dtrace_script=script
+        )
+
+
+def benchmark_probe_effect(name_prefix, script="BEGIN{}", additional_flags=""):
+    buffer_sizes = buffers_up_to_16MB()
+    trials = 10
+    modes = ["local", "local -s", "pipe"]
+
+    for mode in modes:
+        flags = "-i {} -v {}".format(mode, additional_flags)
+        out_name = "{}_{}{}.json".format(name_prefix, mode, additional_flags)
 
         print "mode: ", mode, "flags:", flags, "out_name:", out_name
 

@@ -6,12 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import imp
+
 try:
     imp.find_module('dtrace')
     from dtrace import *
 except ImportError:
-    print("DTrace module missing!")
-
+    pass#print("DTrace module missing!")
 
 
 def dummy_f(cmd):
@@ -181,8 +181,7 @@ def plot_graph(xvs,  # x values
                linestyle=None,
                figsize=(15, 6),
                x_ticks=None,
-               alpha=1.0,
-               linewidth=None
+               alpha=1.0
                ):
     print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
 
@@ -207,14 +206,10 @@ def plot_graph(xvs,  # x values
 
     if axis is None:
         fig = plt.figure(figsize=figsize)
-    #     ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label,
-    #                            color=color, linestyle=linestyle, alpha=alpha,
-    #                            linewidth=linewidth)
-    # else:
+
     ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis,
-                               label=label, color=color, alpha=alpha,
-                               linewidth=linewidth,
-                               linestyle=linestyle)
+                           label=label, color=color, alpha=alpha,
+                           linestyle=linestyle)
 
     if title:
         plt.title(title)  # 'io-static {} performance'.format(label))
@@ -361,6 +356,9 @@ def plot_pmc(input_data_file,
         linestyle=linestyle,
         figsize=figsize
     )
+
+
+
 
 
 def plot_time(input_data_file,

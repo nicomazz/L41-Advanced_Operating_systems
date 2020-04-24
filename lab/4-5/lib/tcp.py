@@ -1,16 +1,16 @@
+import imp
 import json
 from bisect import bisect_left
 from collections import defaultdict
 
 import pygraphviz as pgv
 from IPython.display import Image
-import imp
 
 try:
     imp.find_module('dtrace')
     from dtrace import *
 except ImportError:
-    print("DTrace module missing!")
+    pass  # print("DTrace module missing!")
 
 from test import setup_kernel, save_output, convert_in_bandwith, plot_graph, \
     read_json_file
@@ -63,7 +63,9 @@ def graph_tcp(latency):
     }
     */
     fbt::tcp_state_change:entry {
-        printf("{\\"timestamp\\": %u, \\"local_port\\": %u, \\"foreign_port\\": %u, \\"previous_tcp_state\\": \\"%s\\", \\"tcp_state\\": \\"%s\\"}", 
+        printf("{\\"timestamp\\": %u, \\"local_port\\": %u, 
+        \\"foreign_port\\": %u, \\"previous_tcp_state\\": \\"%s\\", 
+        \\"tcp_state\\": \\"%s\\"}", 
         walltimestamp,
         ntohs(args[0]->t_inpcb->inp_inc.inc_ie.ie_lport),
         ntohs(args[0]->t_inpcb->inp_inc.inc_ie.ie_fport),
@@ -106,7 +108,7 @@ def graph_tcp(latency):
     label = "TCP state machine - {} ms latency".format(latency)
     output_file = "TCP_state_machine_{}_ms.png".format(latency)
     tcp_state_machine = pgv.AGraph(
-        label=label, strict=False, directed=True)
+            label=label, strict=False, directed=True)
     for raw_value in values:
         try:
             value = json.loads(raw_value)
@@ -116,12 +118,14 @@ def graph_tcp(latency):
                 from_state = value['previous_tcp_state'][6:]
                 to_state = value['tcp_state'][6:]
                 label = "server" if value[
-                                        "local_port"] == TARGET_PORT else "client"
+                                        "local_port"] == TARGET_PORT else \
+                    "client"
 
                 # print "State transition {} -> {}".format(
                 #    value['previous_tcp_state'], value['tcp_state'])
             else:
-                print "String malformatted missing previous_tcp_state of tcp_state fields"
+                print "String malformatted missing previous_tcp_state of " \
+                      "tcp_state fields"
         except ValueError as e:  # stack trace
             prec_f = "\n".join([i.replace('`', '+').split("+")[1] for i in
                                 raw_value.split('\n')[1:2]][::-1])
@@ -196,8 +200,9 @@ def benchmark_tcp_bandwith(latencies=[], flags="",
         for i in range(trials):
             cmd("sysctl net.inet.tcp.hostcache.purgenow=1")
 
-            ipc_cmd = "ipc/ipc-static -i tcp -B -b 1048576 -q {} 2thread".format(
-                flags)
+            ipc_cmd = "ipc/ipc-static -i tcp -B -b 1048576 -q {} " \
+                      "2thread".format(
+                    flags)
             output = cmd(ipc_cmd)
             program_outputs.append(str("\n".join(output)))
 
@@ -211,9 +216,9 @@ def benchmark_tcp_bandwith(latencies=[], flags="",
         print "values collected: {}".format(len(values))
 
     result = {
-        "latencies": latencies,
-        "output": values,
-        "program_outputs": program_outputs
+            "latencies"      : latencies,
+            "output"         : values,
+            "program_outputs": program_outputs
     }
 
     if len(output_name) > 0:
@@ -231,7 +236,8 @@ def plot_tcp_bandwidth(input_data_file,
                        y_label=None,
                        x_label=None
                        ):
-    # Plot the read performance (IO bandwidth against buffer size with error bars)
+    # Plot the read performance (IO bandwidth against buffer size with error
+    # bars)
     data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
@@ -244,27 +250,27 @@ def plot_tcp_bandwidth(input_data_file,
                                               total_size)
 
     return plot_graph(
-        xvs=xvs,
-        yvs=io_bandwidth_values,
-        title=title,
-        label=label,
-        trials=trials,
-        save_name=save_name,
-        axis=axis,
-        y_label=y_label,
-        x_label=x_label
+            xvs=xvs,
+            yvs=io_bandwidth_values,
+            title=title,
+            label=label,
+            trials=trials,
+            save_name=save_name,
+            axis=axis,
+            y_label=y_label,
+            x_label=x_label
     )
 
 
 tcp_variables = {
-    "snd_cwnd": "args[3]->snd_cwnd",
-    "snd_wnd": "args[3]->snd_wnd",
-    "th_seq": "(unsigned int)args[1]->th_seq",
-    "th_dport": "htons(args[1]->th_dport)",
-    "timestamp": "vtimestamp",
-    "th_sport": "htons(args[1]->th_sport)",
-    "th_ack": "(unsigned int)args[1]->th_ack",
-    "snd_ssthresh": "args[3]->snd_ssthresh"
+        "snd_cwnd"    : "args[3]->snd_cwnd",
+        "snd_wnd"     : "args[3]->snd_wnd",
+        "th_seq"      : "(unsigned int)args[1]->th_seq",
+        "th_dport"    : "htons(args[1]->th_dport)",
+        "timestamp"   : "walltimestamp",
+        "th_sport"    : "htons(args[1]->th_sport)",
+        "th_ack"      : "(unsigned int)args[1]->th_ack",
+        "snd_ssthresh": "args[3]->snd_ssthresh"
 }
 
 print_all_variables_d_script = """
@@ -275,19 +281,19 @@ fbt::tcp_do_segment:entry
 /args[1]->th_sport == htons(10141) || args[1]->th_dport == htons(10141)/
 { 
 """ + "\n".join(
-    ["printf(\"{}:%d\",{});".format(key, value) for key, value in
-     tcp_variables.items()]) + """
+        ["printf(\"{}:%d\",{});".format(key, value) for key, value in
+         tcp_variables.items()]) + """
 }
 """
 
 
 def benchmark_variables(latency=10, flags="", output_name=""):
     return benchmark_tcp_bandwith(
-        latencies=[latency],
-        dtrace_script=print_all_variables_d_script,
-        trials=1,
-        flags=flags,
-        output_name=output_name)
+            latencies=[latency],
+            dtrace_script=print_all_variables_d_script,
+            trials=1,
+            flags=flags,
+            output_name=output_name)
 
 
 def filter_time(variables, min, max):
@@ -313,7 +319,7 @@ def extract_tcp_variables(input_name):
     for s in output:
         ss = s.split(":")
         res[ss[0]].append(int(ss[1]))
-    res = filter_time(res, ns(ms=100), ns(ms=500))
+    # res = filter_time(res, ns(ms=100), ns(ms=500))
     return res
 
 
@@ -417,42 +423,44 @@ def easy_bandwidth(times, seq, gamma=0.05):
     return rt[1::2], rb[1::2]
 
 
-def smooth_avg(xvs, yvs, factor=20, times=6):
+def smooth_avg(xvs, yvs, factor=20, times=1):
     for _ in range(times):
         yvs = [avg(yvs[i:i + factor]) for i in range(len(yvs) - factor)]
         yvs += [yvs[-1]] * factor
     return xvs, yvs
 
 
-def copied_bandwidth(times, seq, time_diffs=0.0001):
+def calc_bandwidth(times, seq, min_dt_sec=1e-9):
     final_len = 0
-    TIME_SPLIT = 150
-    cur_time = times[0]  # float(ENTRIES[0]["Time"])
-    cur_seq = seq[0]  # float(ENTRIES[0]["Seq"])
+    cur_time = times[0]
+    cur_seq = seq[0]
     bws = []
     unit_ctr = 0
-    for e in zip(times, seq):
-        diff = ((float(e[0]) - cur_time) / 1000000000)
-        if diff > time_diffs:
-            bws.append(e)
-            cur_time = float(e[0])
+    min_dt_nsec = 1  # min_dt_sec * 1e9
+    print times[:10]
 
-    bws = zip(bws[::2], bws[1::2])
+    for (t, s) in zip(times, seq):
+        dt = t - cur_time
+        if dt > 0:
+            bws.append((t, s))
+            cur_time = t
 
-    tps = []
-    for e in bws:
-        tp = (float(e[1][1]) - float(e[0][1])) / (
-                float(e[1][0]) - float(e[0][0]))
-        tps.append(max(tp, 0))
+    print(len(bws))
+    res_bw = []
+    res_t = []
+    for ((t0, s0), (t1, s1)) in zip(bws[::2], bws[1::2]):
+        dt = t1 - t0
+        ds = s1 - s0
+        bw = ds * 1e6 / dt
+        res_t.append(t0)
+        res_bw.append(max(bw, 0))
 
-    times = [list(b)[1][0] for b in bws]
-    times = [(float(t) - float(times[0])) / 1000000000 for t in times]
-    return smooth_avg(times, tps)
+    return res_t, res_bw  # smooth_avg(times, tps)
 
 
 ## resolution in milliseconds
 def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
-                                   title=None, resolution=100,
+                                   title=None,
                                    sender_side=True):
     tmp = extract_tcp_variables(input_name)
     initial_size = len(tmp["timestamp"])
@@ -464,30 +472,30 @@ def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
     variables = tmp
 
     time = variables["timestamp"]
-    maxt = time[-1]
-    time = [t - maxt for t in time]
+    offset = time[0]
+    time = [t - offset for t in time]
 
     seq = variables["th_seq"]
-    xvs, yvs = copied_bandwidth(time,
-                                seq)  # easy_bandwidth(time, seq)  # compute_bandwidth(time, seq)
+    xvs, yvs = calc_bandwidth(time, seq)  # easy_bandwidth(time, seq)  #
+    # compute_bandwidth(time, seq)
     max_time = xvs[-1] / 1e9
     x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
 
-    print("Data prepared. Now plotting..")
+    print("Data prepared. Now plotting...")
     return plot_graph(
-        xvs=[t / 1e9 for t in xvs],
-        yvs=yvs,
-        label=label,
-        trials=1,
-        title=title,
-        axis=axis,
-        x_ticks=x_ticks
+            xvs=[t / 1e9 for t in xvs],
+            yvs=yvs,
+            label=label,
+            trials=1,
+            title=title,
+            axis=axis,
+            x_ticks=x_ticks
     )
 
 
 def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
-                  filter_maximum=False, min_window=False, linewidth=1,
-                  alpha=1.0):
+                  filter_maximum=False, min_window=False,
+                  alpha=1.0, label=None, save_name=None):
     tmp = extract_tcp_variables(input_name)
     if sender_side:
         tmp = filter_input(tmp, "th_dport", TARGET_PORT)
@@ -500,7 +508,8 @@ def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
     # keeps a value only if it is the minimub between cwnd and wnd
     if var == "Minimum window":
         print(
-            "lengths: ", len(variables["snd_cwnd"]), len(variables["snd_wnd"]))
+                "lengths: ", len(variables["snd_cwnd"]),
+                len(variables["snd_wnd"]))
         yvs = [min(i, j) for (i, j) in
                zip(variables["snd_cwnd"], variables["snd_wnd"])]
     else:
@@ -512,47 +521,90 @@ def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
         yvs = [i if i < 1e6 else 0 for i in yvs]
     offset = time[0]
     time = [i - offset for i in time]
+    print("t0:", time[0], "t-1:", time[-1], "diff:", time[-1] - time[0])
     max_time = float(time[-1]) / 1e9
     print("max time: {}".format(max_time))
     x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
 
     print("Data prepared. Now plotting {}..".format(var))
-
+    if label is None:
+        label = var
     return plot_graph(
-        label=var,
-        xvs=[t / 1e9 for t in time],
-        yvs=yvs,
-        trials=1,
-        title=title,
-        axis=ax,
-        x_ticks=x_ticks,
-        linewidth=linewidth,
-        alpha=alpha
+            label=label,
+            xvs=[t / 1e9 for t in time],
+            yvs=yvs,
+            trials=1,
+            title=title,
+            axis=ax,
+            x_ticks=x_ticks,
+            alpha=alpha,
+            save_name=save_name
     )
 
 
-def plot_tcp_cwnd_wnd_ssthresh(input, title=None, save_name=None):
-    ax = plot_variable(input, "snd_cwnd", sender_side=True, filter_maximum=True)
-    plot_variable(input, "snd_wnd", sender_side=True, ax=ax)
-    plot_variable(input, "snd_ssthresh", title=title, sender_side=True, ax=ax)
+def latency_name(lat):
+    return "all_variables_{}.json".format(lat)
+
+
+def latency_name_s(lat):
+    return "all_variables_{}_s.json".format(lat)
+
+
+AUTO_BUFFER = "Auto buffer"
+FIXED_BUFF = "Fixed buffer"
+BUFF_LABELS = [AUTO_BUFFER, FIXED_BUFF]  # "", "-s"
+
+
+def plot_tcp_cwnd_wnd_ssthresh(latency):
+    for (file, label) in zip([latency_name(latency), latency_name_s(latency)],
+                             BUFF_LABELS):
+        title = "Congestion window, receiver advertised window, and ssthresh " \
+                "for {}ms latency ({})".format(latency, label)
+        ax = plot_variable(file, "snd_cwnd", sender_side=True,
+                           filter_maximum=True)
+        plot_variable(file, "snd_wnd", sender_side=True, title=title, ax=ax)
+        #plot_variable(file, "snd_ssthresh", sender_side=True,
+        #              ax=ax)
+        ax.set_yscale("log")
+    return ax
+
+
+def compare_bandwidth(latency):
+    title = "TCP bandwith across time with {}ms latency".format(latency)
+    ax = plot_tcp_bandwidth_across_time(latency_name(latency),
+                                        label=AUTO_BUFFER,
+                                        sender_side=False)
+    plot_tcp_bandwidth_across_time(latency_name_s(latency),
+                                   title=title,
+                                   axis=ax,
+                                   label=FIXED_BUFF,
+                                   sender_side=False)
+    ax.set_yscale('log')
+
+
+def compare_wnd(latency):
+    ax = None
+    title = "Advertised window from the receiver with {}ms latency".format(
+            latency)
+    save_name = "wnd_comparison_{}.png".format(latency)
+    ax = plot_variable(latency_name(latency), "snd_wnd", sender_side=True,
+                       ax=ax, label=AUTO_BUFFER)
+    ax = plot_variable(latency_name_s(latency), "snd_wnd", sender_side=True,
+                       ax=ax, label=FIXED_BUFF, title=title,
+                       save_name=save_name)
     ax.set_yscale("log")
     return ax
 
 
-def plot_min_window(input, title=None, save_name=None):
+def compare_cwnd(latency):
     ax = None
-    # ax = plot_variable(input, "Minimum window", title=title, sender_side=True,
-    #                    alpha=1, linewidth=4, ax=ax)
-    ax = plot_variable(input, "snd_cwnd", ax=ax, sender_side=True,
-                       filter_maximum=True, linewidth=2)
-    plot_variable(input, "snd_wnd", title=title, sender_side=True, linewidth=2,
-                  ax=ax)
-
+    title = "Sender congestion window with {}.ms latency".format(latency)
+    save_name = "cwnd_comparison_{}.png".format(latency)
+    ax = plot_variable(latency_name(latency), "snd_cwnd", title=title,
+                       sender_side=True, filter_maximum=True,
+                       ax=ax, label=AUTO_BUFFER)
+    ax = plot_variable(latency_name_s(latency), "snd_cwnd", title=title,
+                       sender_side=True, filter_maximum=True,
+                       ax=ax, label=FIXED_BUFF, save_name=save_name)
     ax.set_yscale("log")
-
-
-def plot_all_variables(input_name):
-    ax = None
-    for var, _ in tcp_variables.items():
-        ax = plot_variable(input_name, var, ax=ax)
     return ax

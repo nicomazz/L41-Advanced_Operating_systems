@@ -51,7 +51,15 @@ sorting=ynt
 }
 
 
-
+\iffalse
+1. gather data from bb
+2. run ./get_data.sh
+3. run change clion deployment to remote
+4. use jupyter locally
+5. save everything
+6. upload with ./upload_data_lib.sh
+7. return to 1
+\fi
 
 \begin{document}
 
@@ -67,15 +75,18 @@ sorting=ynt
 
    - state machine comparison with the RFC[] one manually setting differnet latencies (differences on the final sequence)
    - analysis of the flow-control and congestion control mechanisms, plotting graphs with the congestion window, and analysing how the tcp state variable change in time.
-   - behaviour of auto-resizing sockets
+   - behaviour of auto-resizing sockets buffer
    - the connection between Latency, RTT and bandwidth
 
 
 \end{abstract}
 
 \iffalse
+- [0,5,10,20,40] ms available
 General todos:
+- (-s = not automatic, but set)
 - [ ] write that the window advertisement is the space available in the receiver buffer.
+- [ ] receive window comparison
 - [ ] write that the cwnd is calculated on duplicate ACKs
 - [ ] annotate trace with events from congestion control implementation
 - [ ] packet loss detection (draw something red when a packet loss is detected)
@@ -216,7 +227,9 @@ There can be multiple reason for this trend. An increased latency limits the con
 \subsection{Time-bandwidth graph}
 
 For the following graphs, the latency has been manually set to 5 ms
-
+Notes:
+- with manual socket it seems faster: it finishes in 2.7 instead of 3.4
+- for the congestion window, initial values are trimmed out
 \subsection{Probe effect}
 
 \section{Conclusions}
