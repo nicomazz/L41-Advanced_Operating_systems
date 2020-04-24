@@ -1,3 +1,4 @@
+import imp
 import json
 import re
 from collections import defaultdict
@@ -5,13 +6,12 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import imp
 
 try:
     imp.find_module('dtrace')
     from dtrace import *
 except ImportError:
-    pass#print("DTrace module missing!")
+    pass  # print("DTrace module missing!")
 
 
 def dummy_f(cmd):
@@ -94,10 +94,10 @@ def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="",
         print "values collected: {}".format(len(values))
 
     result = {
-        "buffer_sizes": buff_sizes,
-        "output": values,
-        "aggr_dict": aggr_dict,
-        "program_outputs": program_outputs
+            "buffer_sizes"   : buff_sizes,
+            "output"         : values,
+            "aggr_dict"      : aggr_dict,
+            "program_outputs": program_outputs
     }
 
     if len(output_name) > 0:
@@ -110,10 +110,10 @@ def benchmark_single_output_aggregation(flags, trials, buff_sizes,
                                         dtrace_script, output_name="",
                                         quiet=False):
     total_res = {
-        "buffer_sizes": [],
-        "output": [],
-        "aggr_dict": [],
-        "program_outputs": []
+            "buffer_sizes"   : [],
+            "output"         : [],
+            "aggr_dict"      : [],
+            "program_outputs": []
     }
     if not quiet:
         print "benchmark single output aggregation with flags: {}".format(flags)
@@ -124,11 +124,11 @@ def benchmark_single_output_aggregation(flags, trials, buff_sizes,
         for t in range(trials):
             while True:
                 res = benchmark(
-                    flags=flags,
-                    trials=1,
-                    buff_sizes=[sz],
-                    dtrace_script=dtrace_script,
-                    quiet=quiet
+                        flags=flags,
+                        trials=1,
+                        buff_sizes=[sz],
+                        dtrace_script=dtrace_script,
+                        quiet=quiet
                 )
                 new_lines = res['output']
                 if len(new_lines) >= 2:
@@ -152,15 +152,15 @@ def get_default_color(label):
     if label is None: return None
 
     dc = [
-        ("local -s", 'limegreen'),
-        ("local", 'darkorange'),
-        ("pipe", 'cornflowerblue'),
-        ("snd_cwnd", 'limegreen'),
-        ("snd_ssthresh", 'darkorange'),
-        ("pipe", 'cornflowerblue'),
-        ("tcp -s", 'darkorange'),
-        ("tcp", 'cornflowerblue'),
-        ("window", 'red')
+            ("local -s", 'limegreen'),
+            ("local", 'darkorange'),
+            ("pipe", 'cornflowerblue'),
+            ("snd_cwnd", 'limegreen'),
+            ("snd_ssthresh", 'darkorange'),
+            ("pipe", 'cornflowerblue'),
+            ("tcp -s", 'darkorange'),
+            ("tcp", 'cornflowerblue'),
+            ("window", 'red')
     ]
     for (k, v) in dc:
         if k in label:
@@ -183,7 +183,8 @@ def plot_graph(xvs,  # x values
                x_ticks=None,
                alpha=1.0
                ):
-    print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
+    print "Now plotting. xvs len:", len(xvs), "yvs len:", len(
+            yvs), "trials:", trials
 
     # Reshape the list into an array of size [len(BUFFER_SIZES), NUM_TRIALS]
     io_bandwidth = np.reshape(yvs, (len(xvs), trials))[:, :]
@@ -191,7 +192,8 @@ def plot_graph(xvs,  # x values
     # Convert the array of io bandwidth values into a Panda DataFrame
     # this allows ploting of the median value and computation of the
     # error bars (25 and 75 percentile values)
-    # Note: The error bars should be small indicating that the experiment is tightly controlled
+    # Note: The error bars should be small indicating that the experiment is
+    # tightly controlled
     df = pd.DataFrame(io_bandwidth, index=xvs)
 
     # Compute error bars based on the 25 and 75 quartile values
@@ -218,8 +220,9 @@ def plot_graph(xvs,  # x values
     if x_label:
         ax.set_xlabel(x_label)
 
-    if len(xvs) >= 2 and xvs[1] == xvs[0] ** 2:
-        ax.set_xscale('log')
+    # print(xvs[:5])
+    # if len(xvs) >= 3 and xvs[1] == xvs[0] ** 2 and xvs[2] == xvs[1] ** 2:
+    #     ax.set_xscale('log')
 
     if x_ticks is None:
         x_ticks = xvs
@@ -262,16 +265,16 @@ def plot_aggregation(input_data_file,
     values = [int(i) for i in data['output'][::2]]
 
     return plot_graph(
-        xvs=buffer_sizes,
-        yvs=values,
-        title=title,
-        label=label,
-        trials=trials,
-        save_name=save_name,
-        axis=axis,
-        y_label=y_label,
-        x_label=x_label,
-        figsize=figsize
+            xvs=buffer_sizes,
+            yvs=values,
+            title=title,
+            label=label,
+            trials=trials,
+            save_name=save_name,
+            axis=axis,
+            y_label=y_label,
+            x_label=x_label,
+            figsize=figsize
     )
 
 
@@ -288,7 +291,8 @@ def plot_bandwith(input_data_file,
                   y_label=None,
                   x_label=None
                   ):
-    # Plot the read performance (IO bandwidth against buffer size with error bars)
+    # Plot the read performance (IO bandwidth against buffer size with error
+    # bars)
     data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
@@ -301,15 +305,15 @@ def plot_bandwith(input_data_file,
                                               total_size)
 
     return plot_graph(
-        xvs=buffer_sizes,
-        yvs=io_bandwidth_values,
-        title=title,
-        label=label,
-        trials=trials,
-        save_name=save_name,
-        axis=axis,
-        y_label=y_label,
-        x_label=x_label
+            xvs=buffer_sizes,
+            yvs=io_bandwidth_values,
+            title=title,
+            label=label,
+            trials=trials,
+            save_name=save_name,
+            axis=axis,
+            y_label=y_label,
+            x_label=x_label
     )
 
 
@@ -332,7 +336,8 @@ def plot_pmc(input_data_file,
              x_label=None,
              figsize=None,
              linestyle='-'):
-    # Plot the read performance (IO bandwidth against buffer size with error bars)
+    # Plot the read performance (IO bandwidth against buffer size with error
+    # bars)
     data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
@@ -344,21 +349,18 @@ def plot_pmc(input_data_file,
                                program_outs]
 
     return plot_graph(
-        xvs=buffer_sizes,
-        yvs=read_performance_values,
-        title=title,
-        label=label,
-        trials=trials,
-        save_name=save_name,
-        axis=axis,
-        y_label=y_label,
-        x_label=x_label,
-        linestyle=linestyle,
-        figsize=figsize
+            xvs=buffer_sizes,
+            yvs=read_performance_values,
+            title=title,
+            label=label,
+            trials=trials,
+            save_name=save_name,
+            axis=axis,
+            y_label=y_label,
+            x_label=x_label,
+            linestyle=linestyle,
+            figsize=figsize
     )
-
-
-
 
 
 def plot_time(input_data_file,
@@ -371,7 +373,8 @@ def plot_time(input_data_file,
               x_label="Buffer size (KB)",
               dotted=True
               ):
-    # Plot the read performance (IO bandwidth against buffer size with error bars)
+    # Plot the read performance (IO bandwidth against buffer size with error
+    # bars)
     data = read_json_file(input_data_file)
 
     # Buffer sizes to compute the performance with
@@ -387,16 +390,16 @@ def plot_time(input_data_file,
                                               total_size)
 
     return plot_graph(
-        xvs=buffer_sizes,
-        yvs=io_bandwidth_values,
-        title=title,
-        label=label,
-        trials=trials,
-        save_name=save_name,
-        axis=axis,
-        y_label=y_label,
-        x_label=x_label,
-        linestyle="--" if dotted else "-"
+            xvs=buffer_sizes,
+            yvs=io_bandwidth_values,
+            title=title,
+            label=label,
+            trials=trials,
+            save_name=save_name,
+            axis=axis,
+            y_label=y_label,
+            x_label=x_label,
+            linestyle="--" if dotted else "-"
     )
 
 
@@ -448,11 +451,11 @@ def benchmark_without_dtrace(name_prefix, script="BEGIN{}",
         print "mode: ", mode, "flags:", flags, "out_name:", out_name
 
         res = benchmark(
-            flags=flags,
-            trials=trials,
-            output_name=out_name,
-            buff_sizes=buffer_sizes,
-            dtrace_script=script
+                flags=flags,
+                trials=trials,
+                output_name=out_name,
+                buff_sizes=buffer_sizes,
+                dtrace_script=script
         )
 
 
@@ -468,11 +471,11 @@ def benchmark_probe_effect(name_prefix, script="BEGIN{}", additional_flags=""):
         print "mode: ", mode, "flags:", flags, "out_name:", out_name
 
         res = benchmark(
-            flags=flags,
-            trials=trials,
-            output_name=out_name,
-            buff_sizes=buffer_sizes,
-            dtrace_script=script
+                flags=flags,
+                trials=trials,
+                output_name=out_name,
+                buff_sizes=buffer_sizes,
+                dtrace_script=script
         )
 
 
