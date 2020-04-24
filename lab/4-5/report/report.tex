@@ -75,10 +75,19 @@ sorting=ynt
 
 \iffalse
 General todos:
+- [ ] write that the window advertisement is the space available in the receiver buffer.
+- [ ] write that the cwnd is calculated on duplicate ACKs
 - [ ] annotate trace with events from congestion control implementation
 - [ ] packet loss detection (draw something red when a packet loss is detected)
-   - 
+- [ ] Mark when  the different tcp phases begin (slowstart, congestion avoidance, fast recovery?)
+- [ ] compare flow-control and congestion limit, showing when each is limiting.
+- [ ] understand if packet len is useful
+- [ ] write about the dtrace buffer limitation
+- [ ] Does linear increase in latency mean linear decrease in bandwidth? How does socket-buffer auto-resizing help/hurt/not change performance?
+- [ ] Explore the effects of socket-buffer limits and stack graph information on the flow-control versus congestion-control limits. How does socket-buffer auto-resizing help/hurt/not change performance? 
+- [ ] describe probe effect, if any?
 \fi
+
 \clearpage
 
 \setcounter{page}{1}

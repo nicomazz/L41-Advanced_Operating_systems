@@ -5,7 +5,13 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from dtrace import *
+import imp
+try:
+    imp.find_module('dtrace')
+    from dtrace import *
+except ImportError:
+    print("DTrace module missing!")
+
 
 
 def dummy_f(cmd):
@@ -39,7 +45,8 @@ def save_output(result, output_name):
     return result
 
 
-def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="", quiet=False):
+def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="",
+              quiet=False):
     values = []
     aggr_dict = defaultdict(int)
 
@@ -99,7 +106,9 @@ def benchmark(flags, trials, buff_sizes, dtrace_script, output_name="", quiet=Fa
     return result
 
 
-def benchmark_single_output_aggregation(flags, trials, buff_sizes, dtrace_script, output_name="", quiet=False):
+def benchmark_single_output_aggregation(flags, trials, buff_sizes,
+                                        dtrace_script, output_name="",
+                                        quiet=False):
     total_res = {
         "buffer_sizes": [],
         "output": [],
@@ -150,7 +159,8 @@ def get_default_color(label):
         ("snd_ssthresh", 'darkorange'),
         ("pipe", 'cornflowerblue'),
         ("tcp -s", 'darkorange'),
-        ("tcp", 'cornflowerblue')
+        ("tcp", 'cornflowerblue'),
+        ("window", 'red')
     ]
     for (k, v) in dc:
         if k in label:
@@ -170,7 +180,9 @@ def plot_graph(xvs,  # x values
                color=None,
                linestyle=None,
                figsize=(15, 6),
-               x_ticks=None
+               x_ticks=None,
+               alpha=1.0,
+               linewidth=None
                ):
     print "xvs len:", len(xvs), "yvs len:", len(yvs), "trials:", trials
 
@@ -195,9 +207,13 @@ def plot_graph(xvs,  # x values
 
     if axis is None:
         fig = plt.figure(figsize=figsize)
-        ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label, color=color, linestyle=linestyle)
-    else:
-        ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis, label=label, color=color,
+    #     ax = df.median(1).plot(yerr=error_bars_values, title=title, label=label,
+    #                            color=color, linestyle=linestyle, alpha=alpha,
+    #                            linewidth=linewidth)
+    # else:
+    ax = df.median(1).plot(yerr=error_bars_values, title=title, ax=axis,
+                               label=label, color=color, alpha=alpha,
+                               linewidth=linewidth,
                                linestyle=linestyle)
 
     if title:
@@ -286,7 +302,8 @@ def plot_bandwith(input_data_file,
     read_performance_values = [int(i) for i in data['output']]
 
     # Compute the IO bandwidth in KiBytes/sec
-    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
+    io_bandwidth_values = convert_in_bandwith(read_performance_values,
+                                              total_size)
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -328,7 +345,8 @@ def plot_pmc(input_data_file,
     total_size = buffer_sizes[-1]  # 16*1024*1024
     program_outs = data['program_outputs']
 
-    read_performance_values = [float(extract_pmc_val(i, pmc_to_plot)) for i in program_outs]
+    read_performance_values = [float(extract_pmc_val(i, pmc_to_plot)) for i in
+                               program_outs]
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -363,10 +381,12 @@ def plot_time(input_data_file,
     total_size = buffer_sizes[-1]  # 16*1024*1024
     program_outs = data['program_outputs']
 
-    read_performance_values = [float(extract_pmc_val(i, "time")) * 1e9 for i in program_outs]
+    read_performance_values = [float(extract_pmc_val(i, "time")) * 1e9 for i in
+                               program_outs]
 
     # Compute the IO bandwidth in KiBytes/sec
-    io_bandwidth_values = convert_in_bandwith(read_performance_values, total_size)
+    io_bandwidth_values = convert_in_bandwith(read_performance_values,
+                                              total_size)
 
     return plot_graph(
         xvs=buffer_sizes,
@@ -417,7 +437,8 @@ def plot_cnt_graph(xvs,  # x values
     return ax
 
 
-def benchmark_without_dtrace(name_prefix, script="BEGIN{}", additional_flags=""):
+def benchmark_without_dtrace(name_prefix, script="BEGIN{}",
+                             additional_flags=""):
     buffer_sizes = buffers_up_to_16MB()
     trials = 10
     modes = ["local", "local -s", "pipe"]
@@ -435,6 +456,7 @@ def benchmark_without_dtrace(name_prefix, script="BEGIN{}", additional_flags="")
             buff_sizes=buffer_sizes,
             dtrace_script=script
         )
+
 
 def benchmark_probe_effect(name_prefix, script="BEGIN{}", additional_flags=""):
     buffer_sizes = buffers_up_to_16MB()
