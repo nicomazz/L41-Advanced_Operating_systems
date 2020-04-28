@@ -449,14 +449,16 @@ def calc_bandwidth(times, seq):
         res_t.append(t0)
         res_bw.append(max(bw, 0))
 
-    # return smooth_avg(res_t,res_bw,factor=2)
-    return res_t, res_bw  # smooth_avg(times, tps)
+    return smooth_avg(res_t, res_bw, factor=2, times=2)
+
+
+#  return res_t, res_bw  # smooth_avg(times, tps)
 
 
 ## resolution in milliseconds
 def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
                                    title=None,
-                                   sender_side=True):
+                                   sender_side=True, save_name=None, xlim=None):
     tmp = extract_tcp_variables(input_name)
     initial_size = len(tmp["timestamp"])
     if sender_side:
@@ -474,7 +476,7 @@ def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
     offset = xvs[0]
     xvs = [t - offset for t in xvs]
     max_time = xvs[-1] / 1e9
-    x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
+    x_ticks = [0.1 * i for i in range(int(max_time * 2 / 0.1))]
 
     # print("Data prepared. Now plotting...")
     return plot_graph(
@@ -484,12 +486,14 @@ def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
             trials=1,
             title=title,
             axis=axis,
-            x_ticks=x_ticks
+            x_ticks=x_ticks,
+            xlim=xlim,
+            save_name=save_name
     )
 
 
 def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
-                  filter_maximum=False, min_window=False,
+                  filter_maximum=False, min_window=False,xlim=None,
                   alpha=1.0, label=None, save_name=None):
     tmp = extract_tcp_variables(input_name)
     if sender_side:
@@ -518,9 +522,9 @@ def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
     # print("t0:", time[0], "t-1:", time[-1], "diff:", time[-1] - time[0])
     max_time = float(time[-1]) / 1e9
     # print("max time: {}".format(max_time))
-    x_ticks = [0.1 * i for i in range(int(max_time / 0.1))]
+    x_ticks = [0.1 * i for i in range(int(max_time * 2 / 0.1))]
 
-    #print("Data prepared. Now plotting {}..".format(var))
+    # print("Data prepared. Now plotting {}..".format(var))
     if label is None:
         label = var
     return plot_graph(
@@ -529,6 +533,7 @@ def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
             yvs=yvs,
             trials=1,
             title=title,
+            xlim=xlim,
             axis=ax,
             x_ticks=x_ticks,
             alpha=alpha,
@@ -548,9 +553,17 @@ AUTO_BUFFER = "Auto buffer"
 FIXED_BUFF = "Fixed size buffer"
 BUFF_LABELS = [AUTO_BUFFER, FIXED_BUFF]  # "", "-s"
 
+LIMITS = {
+        0 : (0, 1.9),
+        5 : (0, 1.3),
+        10: (0, 3.5),
+        20: (0, 4),
+        40: (0, 4)
+}
 
-def limit_ax(ax):
-    ax.set_xlim(0, 2.6)
+
+def limit_ax(ax, lat):
+    ax.set_xlim(LIMITS[lat])
 
 
 def plot_tcp_cwnd_wnd_ssthresh(latency):
@@ -564,13 +577,14 @@ def plot_tcp_cwnd_wnd_ssthresh(latency):
         # plot_variable(file, "snd_ssthresh", sender_side=True,
         #              ax=ax)
         ax.set_yscale("log")
-        limit_ax(ax)
+        limit_ax(ax, latency)
 
     return ax
 
 
 def compare_bandwidth(latency):
     title = "TCP bandwith across time with {}ms latency".format(latency)
+    save_name = "{}_bandwidth.png".format(latency)
     ax = plot_tcp_bandwidth_across_time(latency_name(latency),
                                         label=AUTO_BUFFER,
                                         sender_side=False)
@@ -578,8 +592,10 @@ def compare_bandwidth(latency):
                                    title=title,
                                    axis=ax,
                                    label=FIXED_BUFF,
-                                   sender_side=False)
-    limit_ax(ax)
+                                   sender_side=False,
+                                   xlim=LIMITS[latency],
+                                   save_name=save_name)
+    limit_ax(ax, latency)
     ax.set_yscale('log')
 
 
@@ -593,8 +609,10 @@ def compare_wnd(latency):
                        ax=ax, label=FIXED_BUFF, title=title,
                        save_name=save_name)
     ax = plot_variable(latency_name(latency), "snd_wnd", sender_side=True,
+                       xlim=LIMITS[latency],
+                       save_name=save_name,
                        ax=ax, label=AUTO_BUFFER)
-    limit_ax(ax)
+    limit_ax(ax, latency)
     return ax
 
 
@@ -607,9 +625,11 @@ def compare_cwnd(latency):
                        ax=ax, label=AUTO_BUFFER)
     ax = plot_variable(latency_name_s(latency), "snd_cwnd", title=title,
                        sender_side=True, filter_maximum=True,
+                       xlim=LIMITS[latency],
                        ax=ax, label=FIXED_BUFF, save_name=save_name)
-    limit_ax(ax)
+    limit_ax(ax, latency)
     return ax
+
 
 def compare_ssthreash(latency):
     ax = None
@@ -620,9 +640,11 @@ def compare_ssthreash(latency):
                        ax=ax, label=AUTO_BUFFER)
     ax = plot_variable(latency_name_s(latency), "snd_ssthresh", title=title,
                        sender_side=True, filter_maximum=True,
+                       xlim=LIMITS[latency],
                        ax=ax, label=FIXED_BUFF, save_name=save_name)
-    limit_ax(ax)
+
     return ax
+
 
 def compare_all(latency):
     compare_bandwidth(latency)

@@ -181,7 +181,8 @@ def plot_graph(xvs,  # x values
                linestyle=None,
                figsize=(15, 6),
                x_ticks=None,
-               alpha=1.0
+               alpha=1.0,
+               xlim = None
                ):
     print "Now plotting. xvs len:", len(xvs), "yvs len:", len(
             yvs), "trials:", trials
@@ -234,6 +235,8 @@ def plot_graph(xvs,  # x values
     plt.grid('on', axis='y')
 
     plt.legend()
+    if xlim:
+        ax.set_xlim(xlim)
 
     if save_name:
         plt.savefig(save_name)
