@@ -160,7 +160,9 @@ def get_default_color(label):
             ("pipe", 'cornflowerblue'),
             ("tcp -s", 'darkorange'),
             ("tcp", 'cornflowerblue'),
-            ("window", 'red')
+            ("window", 'red'),
+            ("Fixed","darkorange"),
+            ("Auto","cornflowerblue")
     ]
     for (k, v) in dc:
         if k in label:
@@ -182,7 +184,8 @@ def plot_graph(xvs,  # x values
                figsize=(15, 6),
                x_ticks=None,
                alpha=1.0,
-               xlim = None
+               xlim = None,
+               grid = True
                ):
     print "Now plotting. xvs len:", len(xvs), "yvs len:", len(
             yvs), "trials:", trials
@@ -231,8 +234,9 @@ def plot_graph(xvs,  # x values
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(["{}".format(i) for i in x_ticks])
 
-    plt.grid('on', axis='x')
-    plt.grid('on', axis='y')
+    if grid:
+        plt.grid('on', axis='x')
+        plt.grid('on', axis='y')
 
     plt.legend()
     if xlim:

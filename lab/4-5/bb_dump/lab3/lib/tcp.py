@@ -13,7 +13,7 @@ except ImportError:
     pass  # print("DTrace module missing!")
 
 from test import setup_kernel, save_output, convert_in_bandwith, plot_graph, \
-    read_json_file
+    read_json_file, get_default_color
 
 TARGET_PORT = 10141
 
@@ -323,6 +323,11 @@ def extract_tcp_variables(input_name):
     return res
 
 
+def filter_variables(tmp, sender_side):
+    return filter_input(tmp, "th_dport", TARGET_PORT) if sender_side \
+        else filter_input(tmp, "th_sport", TARGET_PORT)
+
+
 # d is a dictionary of arrays
 def filter_input(d, attr, src):
     source = d[attr]
@@ -461,10 +466,7 @@ def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
                                    sender_side=True, save_name=None, xlim=None):
     tmp = extract_tcp_variables(input_name)
     initial_size = len(tmp["timestamp"])
-    if sender_side:
-        tmp = filter_input(tmp, "th_dport", TARGET_PORT)
-    else:
-        tmp = filter_input(tmp, "th_sport", TARGET_PORT)
+    tmp = filter_variables(tmp, sender_side)
     assert len(tmp["timestamp"]) < initial_size
     variables = tmp
 
@@ -493,13 +495,10 @@ def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
 
 
 def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
-                  filter_maximum=False, min_window=False,xlim=None,
-                  alpha=1.0, label=None, save_name=None):
+                  filter_maximum=False, min_window=False, xlim=None,
+                  alpha=1.0, label=None, save_name=None, grid=True):
     tmp = extract_tcp_variables(input_name)
-    if sender_side:
-        tmp = filter_input(tmp, "th_dport", TARGET_PORT)
-    else:
-        tmp = filter_input(tmp, "th_sport", TARGET_PORT)
+    tmp = filter_variables(tmp, sender_side)
     variables = tmp  # filter_resolution(tmp)
 
     time = variables["timestamp"]
@@ -515,15 +514,18 @@ def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
         yvs = variables[var]
     assert (len(yvs) == len(time))
 
-    if filter_maximum:
-        yvs = [i if i < 1e6 else 0 for i in yvs]
     offset = time[0]
     time = [i - offset for i in time]
     # print("t0:", time[0], "t-1:", time[-1], "diff:", time[-1] - time[0])
     max_time = float(time[-1]) / 1e9
     # print("max time: {}".format(max_time))
-    x_ticks = [0.1 * i for i in range(int(max_time * 2 / 0.1))]
-
+    x_ticks = [0.1 * i for i in range(int((max_time + 0.1) / 0.1))]
+    if filter_maximum:
+        inx_ok = [i for i in range(len(yvs)) if yvs[i] < 1e8]
+        yvs = [yvs[i] for i in inx_ok]
+        time = [time[i] for i in inx_ok]
+        if len(yvs) == 0:
+            return None
     # print("Data prepared. Now plotting {}..".format(var))
     if label is None:
         label = var
@@ -534,9 +536,12 @@ def plot_variable(input_name, var, title=None, ax=None, sender_side=True,
             trials=1,
             title=title,
             xlim=xlim,
+            x_label="Time (s)",
+            y_label="Bytes",
             axis=ax,
             x_ticks=x_ticks,
             alpha=alpha,
+            grid=grid,
             save_name=save_name
     )
 
@@ -556,7 +561,7 @@ BUFF_LABELS = [AUTO_BUFFER, FIXED_BUFF]  # "", "-s"
 LIMITS = {
         0 : (0, 1.9),
         5 : (0, 1.3),
-        10: (0, 3.5),
+        10: (0, 2.7),
         20: (0, 4),
         40: (0, 4)
 }
@@ -566,20 +571,92 @@ def limit_ax(ax, lat):
     ax.set_xlim(LIMITS[lat])
 
 
-def plot_tcp_cwnd_wnd_ssthresh(latency):
+def get_packet_loss_points(file, min_cnt=3):
+    tmp = extract_tcp_variables(file)
+    vars = filter_variables(tmp, sender_side=True)
+    past_ack = {}
+    ack_putted = {""}
+    result = []
+    time_offset = vars["timestamp"][0]
+    for (time, ack) in zip(vars["timestamp"], vars["th_ack"]):
+        if ack not in past_ack:
+            past_ack[ack] = []
+        past_ack[ack].append(time - time_offset)
+
+    for (ack, times) in past_ack.items():
+        if len(times) >= min_cnt:
+            result.append((times[0], 10))
+    return result
+
+
+def plot_packet_loss(file, ax, label="Packet loss"):
+    packet_loss = get_packet_loss_points(file)
+    time = [float(i[0]) / 1e9 for i in packet_loss]
+    yvs = [i[1] for i in packet_loss]
+    ax2 = ax  # .twinx()
+    color = get_default_color(label)
+    if color is None: color = "red"
+    if len(yvs) is 0:
+        return ax2
+    ax2.plot(time, yvs, 'ro', label=label, color=color)
+    ax2.legend()
+    return ax2
+
+
+def plot_tcp_cwnd(latency):
     for (file, label) in zip([latency_name(latency), latency_name_s(latency)],
-                             BUFF_LABELS):
-        title = "Congestion window and receiver advertised window " \
-                "for {}ms latency ({})".format(latency, label)
+                             BUFF_LABELS)[:1]:
+        title = "Congestion window for {}ms latency ({})".format(latency, label)
+        save_name = "{}_cwnd.png"
         ax = plot_variable(file, "snd_cwnd", sender_side=True,
                            filter_maximum=True)
-        plot_variable(file, "snd_wnd", sender_side=True, title=title, ax=ax)
         # plot_variable(file, "snd_ssthresh", sender_side=True,
-        #              ax=ax)
-        ax.set_yscale("log")
+        #               filter_maximum=True,
+        #               ax=ax)
+        # plot_variable(file, "snd_wnd", save_name=save_name,
+        #               alpha=0.7, sender_side=True,
+        #               title=title, ax=ax)
+        # y_color =get_default_color("snd_ssthresh")
+        # ax2.set_ylabel("ssthresh (Bytes)",color=y_color)
+        # ax2.tick_params(axis='y', labelcolor=y_color)
+        # ax.set_yscale("log")
+
         limit_ax(ax, latency)
+        # limit_ax(ax2, latency)
+        plot_packet_loss(file, ax)
+        ax.figure.savefig(save_name)
 
     return ax
+
+
+def plot_tcp_cwnd_wnd_ssthresh(latency):
+    axes = []
+    for (file, label) in zip([latency_name(latency), latency_name_s(latency)],
+                             BUFF_LABELS):
+        title = "Congestion window, adv window and slow start " \
+                "threshold " \
+                "for {}ms latency ({})".format(latency, label)
+        save_name = "{}_cwnd_wnd_comparison.png"
+        ax = plot_variable(file, "snd_cwnd", sender_side=True,
+                           filter_maximum=True)
+        plot_variable(file, "snd_ssthresh", sender_side=True,
+                      filter_maximum=True,
+                      ax=ax)
+        plot_variable(file, "snd_wnd",
+                      alpha=0.5, sender_side=True,
+                      title=title, ax=ax)
+        # y_color =get_default_color("snd_ssthresh")
+        # ax2.set_ylabel("ssthresh (Bytes)",color=y_color)
+        # ax2.tick_params(axis='y', labelcolor=y_color)
+        # ax.set_yscale("log")
+
+        # limit_ax(ax, latency)
+        # limit_ax(ax2, latency)
+        plot_packet_loss(file, ax)
+        ax.figure.savefig(save_name)
+        axes.append(ax)
+
+    return axes
 
 
 def compare_bandwidth(latency):
@@ -588,15 +665,18 @@ def compare_bandwidth(latency):
     ax = plot_tcp_bandwidth_across_time(latency_name(latency),
                                         label=AUTO_BUFFER,
                                         sender_side=False)
+    plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
+
     plot_tcp_bandwidth_across_time(latency_name_s(latency),
                                    title=title,
                                    axis=ax,
                                    label=FIXED_BUFF,
-                                   sender_side=False,
-                                   xlim=LIMITS[latency],
-                                   save_name=save_name)
+                                   sender_side=False)
+    plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
+
     limit_ax(ax, latency)
     ax.set_yscale('log')
+    ax.figure.savefig(save_name)
 
 
 def compare_wnd(latency):
@@ -606,13 +686,16 @@ def compare_wnd(latency):
     save_name = "{}_wnd_comparison.png".format(latency)
 
     ax = plot_variable(latency_name_s(latency), "snd_wnd", sender_side=True,
-                       ax=ax, label=FIXED_BUFF, title=title,
-                       save_name=save_name)
+                       ax=ax, label=FIXED_BUFF, title=title)
+    plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
+
     ax = plot_variable(latency_name(latency), "snd_wnd", sender_side=True,
                        xlim=LIMITS[latency],
-                       save_name=save_name,
                        ax=ax, label=AUTO_BUFFER)
+    plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
     limit_ax(ax, latency)
+    ax.figure.savefig(save_name)
+
     return ax
 
 
@@ -623,11 +706,16 @@ def compare_cwnd(latency):
     ax = plot_variable(latency_name(latency), "snd_cwnd", title=title,
                        sender_side=True, filter_maximum=True,
                        ax=ax, label=AUTO_BUFFER)
+    plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
+
     ax = plot_variable(latency_name_s(latency), "snd_cwnd", title=title,
                        sender_side=True, filter_maximum=True,
                        xlim=LIMITS[latency],
-                       ax=ax, label=FIXED_BUFF, save_name=save_name)
+                       ax=ax, label=FIXED_BUFF)
+    plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
     limit_ax(ax, latency)
+    ax.figure.savefig(save_name)
+
     return ax
 
 
@@ -636,12 +724,16 @@ def compare_ssthreash(latency):
     title = "snd_ssthresh comparison with {}.ms latency".format(latency)
     save_name = "{}_snd_ssthresh_comparison.png".format(latency)
     ax = plot_variable(latency_name(latency), "snd_ssthresh", title=title,
-                       sender_side=True, filter_maximum=True,
+                       sender_side=True, filter_maximum=False,
                        ax=ax, label=AUTO_BUFFER)
+    plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
+
     ax = plot_variable(latency_name_s(latency), "snd_ssthresh", title=title,
-                       sender_side=True, filter_maximum=True,
+                       sender_side=True, filter_maximum=False,
                        xlim=LIMITS[latency],
-                       ax=ax, label=FIXED_BUFF, save_name=save_name)
+                       ax=ax, label=FIXED_BUFF)
+    plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
+    ax.figure.savefig(save_name)
 
     return ax
 
