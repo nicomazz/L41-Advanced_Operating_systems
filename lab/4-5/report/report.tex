@@ -106,17 +106,22 @@ generic things to write
 - [ ] define RTT (and understand what it is)
 - [ ] write that the cwnd is calculated on duplicate ACKs
 - [ ] sshthreshould trimmed at the beginning
+- [ ] write that there are too much things at 0ms and 5ms, that dtrace drops data (and try from cmd line to see if there is the message)
+
 generic things to do 
 - [ ] read chapter about TCP (chp. 14)
 - [ ] annotate trace with events from congestion control implementation
 - [ ] packet loss detection (draw something red when a packet loss is detected)
 - [ ] Mark when  the different tcp phases begin (slowstart, congestion avoidance, fast recovery?)
 - [ ] understand if packet len is useful
-- [ ] probe effect
+- [ ] probe effect. Show the bandwidth graph with and without dtrace
 - [ ] add an indication for each duplicate ack in the graphs (packet loss)
 - [ ] mark start of congestion avoidance
+- [ ] graph with all the bandwidth
+- [ ] retake data for overall bandwidth
 
 generic things to investigate
+- [ ] why is the bandwidth higher at 5ms delay
 - [ ] find out the reason for the different initial increase
 - [ ] compare flow-control and congestion limit, showing when each is limiting.
 - [ ] write about the dtrace buffer limitation
@@ -337,7 +342,11 @@ An increased latency limits the congestion window grow rate, and as a consequenc
 
 \section{Conclusions}
 
-Some conclusions
+In conclusion, we have verified that the FreeBSD TCP state machine implementation follows the specifications described in the RFC 793\cite{postel_transmission_nodate}, and witnessed the closing behaviour in presence of various values of latency.
+
+The relationship between round-trip latency and bandwidth has been proven not linear in either buffer resizing policy cases. The reasons can be find in the effect of latencies in the TCP congestion window growth. An increased latency will slow down the discovery of the effective link bandwidth. 
+Socket-buffer auto-resizing has been proven useful with very small latencies (less than 10ms). However, the slow buffer growth rate is the limiting factor for the slow start phase with higher latencies. Whereas, in the slow start phase, the congestion window is further limited by the receiver buffer size, the measurments showed was impossible to achieve an exponential growth rate in the initial phase. However, after the initial phases, even with higher latencies the final bandwidth value is comparable. Still, with a latency of 40ms TCP did not manage to exit from the initial slow start before finishing the data transfer. All the benchmark executed at higher latencies are strongly affected by the fact that the inital slowstart did not finish. With higher data sizes, it is reasonable to expect a smaller gap between latencies. Ideally, with an infinite amount of data, assuming the same network conditions, the final bandwidth should converge to a single value. % todo ref figure with all the benchmarks
+
 \newpage
 
 \section{References}

@@ -13,7 +13,7 @@ except ImportError:
     pass  # print("DTrace module missing!")
 
 from test import setup_kernel, save_output, convert_in_bandwith, plot_graph, \
-    read_json_file, get_default_color
+    read_json_file, get_default_color, extract_pmc_val
 
 TARGET_PORT = 10141
 
@@ -174,10 +174,13 @@ syscall::exit:entry
 def benchmark_tcp_bandwith(latencies=[], flags="",
                            dtrace_script=speed_benchmark, output_name="",
                            quiet=False,
+                           ignore_dtrace_output=False,
                            trials=10):
     values = []
 
     def simple_out(value):
+        if ignore_dtrace_output:
+            return
         values.append(value)
 
     # Create a seperate thread to run the DTrace instrumentation
@@ -199,8 +202,8 @@ def benchmark_tcp_bandwith(latencies=[], flags="",
         if not quiet: print("Latency: {}".format(latency))
         for i in range(trials):
             cmd("sysctl net.inet.tcp.hostcache.purgenow=1")
-
-            ipc_cmd = "ipc/ipc-static -i tcp -B -b 1048576 -q {} " \
+            # q flag removed!!
+            ipc_cmd = "ipc/ipc-static -i tcp -B -b 1048576 {} " \
                       "2thread".format(
                     flags)
             output = cmd(ipc_cmd)
@@ -287,13 +290,71 @@ fbt::tcp_do_segment:entry
 """
 
 
-def benchmark_variables(latency=10, flags="", output_name=""):
+def benchmark_variables(latency=10, flags="", output_name="", trials=1):
     return benchmark_tcp_bandwith(
             latencies=[latency],
             dtrace_script=print_all_variables_d_script,
-            trials=1,
+            trials=trials,
             flags=flags,
             output_name=output_name)
+
+
+def benchmark_tcp_without_dtrace(script=print_all_variables_d_script,
+                                 name_prefix=""):
+    modes = ["", "-s"]
+    trials = 10
+    for mode in modes:
+        flags = "{} -v".format(mode)
+        out_name = "tcp_{}_{}_wno_dtrace.json".format(name_prefix, mode)
+
+        print "mode: ", mode, "flags:", flags, "out_name:", out_name
+
+        benchmark_tcp_bandwith(latencies=range(0, 41, 5), flags=flags,
+                               trials=trials,
+                               dtrace_script=print_all_variables_d_script,
+                               ignore_dtrace_output=True,
+                               output_name=out_name)
+        print("{} generated".format(out_name))
+
+
+def plot_tcp_time_from_output(input_data_file,
+                              title=None,
+                              label=None,
+                              trials=10,
+                              save_name=None,
+                              ax=None,
+                              y_label="Bandwith (KB/s)",
+                              x_label="Latency(KB)",
+                              dotted=True
+                              ):
+    # Plot the read performance (IO bandwidth against buffer size with error
+    # bars)
+    data = read_json_file(input_data_file)
+
+    # Buffer sizes to compute the performance with
+    latencies = data['latencies']
+    total_size = float(16 * 1024 * 1024)
+    program_outs = data['program_outputs']
+
+    read_performance_values = [
+            float(extract_pmc_val(i, "time")) * 1e9 for i in program_outs]
+
+    # Compute the IO bandwidth in KiBytes/sec
+    io_bandwidth_values = convert_in_bandwith(read_performance_values,
+                                              total_size)
+
+    return plot_graph(
+            xvs=latencies,
+            yvs=io_bandwidth_values,
+            title=title,
+            label=label,
+            trials=trials,
+            save_name=save_name,
+            axis=ax,
+            y_label=y_label,
+            x_label=x_label,
+            linestyle="--" if dotted else "-"
+    )
 
 
 def filter_time(variables, min, max):
@@ -559,8 +620,8 @@ FIXED_BUFF = "Fixed size buffer"
 BUFF_LABELS = [AUTO_BUFFER, FIXED_BUFF]  # "", "-s"
 
 LIMITS = {
-        0 : (0, 1.9),
-        5 : (0, 1.3),
+        0 : (0, 2),
+        5 : (0, 1.8),
         10: (0, 2.7),
         20: (0, 4),
         40: (0, 4)
@@ -665,14 +726,14 @@ def compare_bandwidth(latency):
     ax = plot_tcp_bandwidth_across_time(latency_name(latency),
                                         label=AUTO_BUFFER,
                                         sender_side=False)
-    plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
+    # plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
 
     plot_tcp_bandwidth_across_time(latency_name_s(latency),
                                    title=title,
                                    axis=ax,
                                    label=FIXED_BUFF,
                                    sender_side=False)
-    plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
+    # plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
 
     limit_ax(ax, latency)
     ax.set_yscale('log')
