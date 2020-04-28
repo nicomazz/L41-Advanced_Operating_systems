@@ -463,7 +463,7 @@ def benchmark_without_dtrace(name_prefix, script="BEGIN{}",
                 output_name=out_name,
                 buff_sizes=buffer_sizes,
                 dtrace_script=script
-        )
+        ) 
 
 
 def benchmark_probe_effect(name_prefix, script="BEGIN{}", additional_flags=""):
