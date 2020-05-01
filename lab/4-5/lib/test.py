@@ -376,7 +376,7 @@ def plot_time(input_data_file,
               trials=10,
               save_name=None,
               axis=None,
-              y_label="IPC Bandwith (KB/s)",
+              y_label="IPC Bandwidth (KB/s)",
               x_label="Buffer size (KB)",
               dotted=True
               ):

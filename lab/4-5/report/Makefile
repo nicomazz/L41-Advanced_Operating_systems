@@ -3,7 +3,7 @@ BIB=references.bib
 .PHONY: check-bibliography sort-bibliography all
 
 all:
-	latexmk -bibtex -pdf $(NAME) --jobname=$(NAME)-final -output-directory=build
+	latexmk -bibtex -pdf -shell-escape $(NAME) --jobname=$(NAME)-final -output-directory=build
 	cp -f "build/$(NAME)-final.pdf" "$(NAME).pdf"
 
 clean:

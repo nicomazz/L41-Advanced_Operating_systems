@@ -306,6 +306,8 @@ fbt::tcp_do_segment:entry
 }
 """
 
+def print_all_variables_script():
+    print(print_all_variables_d_script)
 
 def benchmark_variables(latency=10, flags="", output_name="", trials=1):
     return benchmark_tcp_bandwith(
@@ -338,7 +340,7 @@ def plot_tcp_time_from_output(input_data_file,
                               trials=5,
                               save_name=None,
                               ax=None,
-                              y_label="Bandwith (KB/s)",
+                              y_label="Bandwidth (KB/s)",
                               x_label="Latency(ms)",
                               dotted=True,
                               color=None
@@ -667,8 +669,8 @@ def get_packet_loss_points(file, min_cnt=3):
     return result
 
 
-def plot_packet_loss(file, ax, label="Packet loss"):
-    packet_loss = get_packet_loss_points(file)
+def plot_packet_loss(file, ax, min_loss_cnt = 3,label="Packet loss"):
+    packet_loss = get_packet_loss_points(file,min_cnt=min_loss_cnt)
     time = [float(i[0]) / 1e9 for i in packet_loss]
     yvs = [i[1] for i in packet_loss]
     ax2 = ax  # .twinx()
@@ -683,7 +685,7 @@ def plot_packet_loss(file, ax, label="Packet loss"):
 
 def plot_tcp_cwnd(latency):
     for (file, label) in zip([latency_name(latency), latency_name_s(latency)],
-                             BUFF_LABELS)[:1]:
+                             BUFF_LABELS):
         title = "Congestion window for {}ms latency ({})".format(latency, label)
         save_name = "{}_cwnd.png"
         ax = plot_variable(file, "snd_cwnd", sender_side=True,
@@ -701,10 +703,25 @@ def plot_tcp_cwnd(latency):
 
         limit_ax(ax, latency)
         # limit_ax(ax2, latency)
-        plot_packet_loss(file, ax)
+        plot_packet_loss(file, ax, min_loss_cnt=1)
         ax.figure.savefig(save_name)
 
     return ax
+
+
+def plot_tcp_seq(latency):
+    for (file, label) in zip([latency_name(latency), latency_name_s(latency)], BUFF_LABELS)[:1]:
+        ax = plot_variable(file,
+                      "th_seq",
+                      sender_side=False)
+        #ax.set_ylim((4.12 * 1e9, 4.13 * 1e9))
+
+def plot_tcp_ack(latency):
+    for (file, label) in zip([latency_name(latency), latency_name_s(latency)], BUFF_LABELS)[:1]:
+        ax = plot_variable(file,
+                      "th_ack",
+                      sender_side=True)
+        #ax.set_ylim((4.12 * 1e9, 4.13 * 1e9))
 
 
 def plot_tcp_cwnd_wnd_ssthresh(latency):
@@ -730,7 +747,7 @@ def plot_tcp_cwnd_wnd_ssthresh(latency):
 
         # limit_ax(ax, latency)
         # limit_ax(ax2, latency)
-        plot_packet_loss(file, ax)
+        plot_packet_loss(file, ax, min_loss_cnt=2)
         ax.figure.savefig(save_name)
         axes.append(ax)
 

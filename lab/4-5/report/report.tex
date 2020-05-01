@@ -4,7 +4,12 @@
 \usepackage{listings}
 \usepackage{xparse}
 \usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{color}          % Code coloring
 \usepackage[a4paper, margin=1in]{geometry}
+\usepackage{minted}
+\definecolor{mannibg}{HTML}{f0f3f3}
+\setminted{frame=lines,linenos,framesep=7pt,bgcolor=mannibg,fontsize=\footnotesize}
 
 \usepackage{graphicx}
 \graphicspath{ {./images/} }
@@ -16,7 +21,18 @@ backend=biber,
 style=ieee,
 sorting=ynt
 ]{biblatex}
-
+\usepackage[
+  hashEnumerators,
+  definitionLists,
+  footnotes,
+  smartEllipses,
+  tableCaptions,
+  fencedCode,
+  inlineFootnotes,
+  citations,
+  hybrid,
+  html
+]{markdown} 
 
 \addbibresource{references.bib}
  
@@ -51,6 +67,7 @@ sorting=ynt
 \texttt{{#1}}%
 }
 
+\def\markdownOptionOutputDir{./build}
 
 \iffalse
 1. gather data from bb
@@ -82,11 +99,8 @@ sorting=ynt
    congestion control techniques behave. Particular attention is put into the
    comparison of fixed socket buffers versus automatic buffer resizing.
 
-   As a result, it is highlighted the connection between Latency, RTT (Round-Trip time) and bandwidth. 
-   Setting the size of socket buffers will avoid expensive resizing on the way to the final bandwidth, resulting in the reach of mean bandwith in a faster way. An automatic socket buffer resizing policy makes the initial slow start phase slower. Since the congestion window is limited by the receiver available buffer size, the increase is not exponential anymore, and depends by the effective resizing policy. In FreeBSD, the buffer % todo find the code with the actual policy.
-%todo include conclusions, and results
-
-
+   As a result, it is highlighted the connection between RTT (Round-Trip time) and bandwidth. 
+   Setting the size of socket buffers will avoid expensive resizing on the way to the final bandwidth, resulting in the reach of the target bandwith in a faster way. The automatic socket buffer resizing policy makes the initial slow start phase slower. Since the congestion window is limited by the receiver available buffer size, the increase is not exponential anymore, and depends by the effective resizing policy. In the specific board FreeBSD version, the buffer is incremented by small steps every time. For this reason, it is th emain bottleneck to the speed of the slow start phase at higher latencies.
  
 \end{abstract}
 
@@ -101,32 +115,31 @@ General todos:
 - (-s = not automatic, but set)
 
 generic things to write
-- [ ] write that the window advertisement is the space available in the receiver buffer.
-- [ ] receive window comparison
-- [ ] define RTT (and understand what it is)
-- [ ] write that the cwnd is calculated on duplicate ACKs
-- [ ] sshthreshould trimmed at the beginning
+- [x] write that the window advertisement is the space available in the receiver buffer.
+- [x] receive window comparison
+- [x] define RTT (and understand what it is)
+- [x] write that the cwnd is calculated on duplicate ACKs
+- [x] ssthreshould trimmed at the beginning
+- [x] read chapter about TCP (chp. 14)
+- [x] annotate trace with events from congestion control implementation
+- [x] packet loss detection (draw something red when a packet loss is detected)
+- [x] probe effect. Show the bandwidth graph with and without dtrace
+- [x] retake data for overall bandwidth
+- [x] add an indication for each duplicate ack in the graphs (packet loss)
 - [ ] write that there are too much things at 0ms and 5ms, that dtrace drops data (and try from cmd line to see if there is the message)
-
+- [ ] timeout with low latencies
+- [ ] gradual buffer increase more effective with low latencies? but why?
+- [ ] how to set socket buffer size
 generic things to do 
-- [ ] read chapter about TCP (chp. 14)
-- [ ] annotate trace with events from congestion control implementation
-- [ ] packet loss detection (draw something red when a packet loss is detected)
-- [ ] Mark when  the different tcp phases begin (slowstart, congestion avoidance, fast recovery?)
+- [ ] Mark when  the different tcp phases begin (slowstart, congestion avoidance, fast recovery?) (use different colors in the graph)
 - [ ] understand if packet len is useful
-- [ ] probe effect. Show the bandwidth graph with and without dtrace
-- [ ] add an indication for each duplicate ack in the graphs (packet loss)
-- [ ] mark start of congestion avoidance
-- [ ] graph with all the bandwidth
-- [ ] retake data for overall bandwidth
 - [ ] profile to see what happens
+- [ ] packet size
+- [-] graph with all the bandwidth
 
 generic things to investigate
-- [ ] why is the bandwidth higher at 5ms delay
-- [ ] find out the reason for the different initial increase
-- [ ] compare flow-control and congestion limit, showing when each is limiting.
+- [ ] why is the bandwidth higher with resizing buffers at small latencies
 - [ ] write about the dtrace buffer limitation
-- [ ] Does linear increase in latency mean linear decrease in bandwidth? How does socket-buffer auto-resizing help/hurt/not change performance?
 - [ ] Explore the effects of socket-buffer limits and stack graph information on the flow-control versus congestion-control limits. How does socket-buffer auto-resizing help/hurt/not change performance? 
 - [ ] describe probe effect, if any?
 - [ ] dtrace precision problem; There are many timestamps that are the same:v (put this in limitations)
@@ -163,7 +176,7 @@ The tcp congestion control takes into account two different factors:
       of the TCP connection, and it is changed according to three different
       phases (even if all the actual implementations might slighly differ).
 \end{enumerate}
-The congestion window change is handled in different phases, well described in the RFC 5681\ref{RFC_5681}:
+The congestion window change is handled in different phases, well described in the RFC 5681\cite{RFC_5681}:
 \begin{itemize}
    \item Slow start. In this phase, the congestion window is increased by one MSS for each acknowledgement received. This results in an exponential increase. However, this growth is limited by the advertised window: a limited advertised window might cause this phase to be all but exponential. Once a congestion is detected (trough duplicate ACKs) the variable \codeword{ssthreshould} is set to half of the congestion window, and the slow start begins again. Once the congestion window reaches the "slow start threshold", the phase switches to congestion avoidance.
    \item Congestion avoidance. In this phase there is a more cautious increase of the congestion window. The growth is not exponential anymore, but aims to be linear. In the case of a timeout, the phase returns to slow start with a slowstart threshold half the congestion window.
@@ -194,7 +207,7 @@ The board mounts an SD card. However, it is not relevant for the test, as the be
 
 The benchmark consists of a program able to create two ends of a TCP socket over the loopback interface. The program is statically linked, so we can neglet dynamic linking performance overhead. The program opens a socket using the \codeword{socket(2)} system call, bind it to a specifc port, and listen for new connections. The receiving end similarly opens a socket, and uses \codeword{connect(2)} to connect with the other endpoint at the same port. During the benchmark, a fixed size amount of data is transferred from the sender to the receiver. Afterwards, the \codeword{close(2)} system call initiate the closing phase.
 
-IPFW, the firewall used, provides DUMMYNET\cite{luigirizzo_luigirizzodummynet_2020}, that allows to shape the traffic. In this experiment, IPFW is used to generate two pipes, and sent the latency in each one of those. The pipes are used to filter the traffic, and selectively apply the delay only to the traffic we care abot. We then generate the state transition graph at different levels of delays, to see the differences.
+IPFW, the firewall used, provides DUMMYNET\cite{luigirizzo_luigirizzodummynet_2020}, that allows to shape the traffic. In this experiment, IPFW is used to generate two pipes, and sent the latency in each one of those. The RTT (Round-Trip Time) will be the sum of the latencies (e.g. for 10 ms latency, the RTT is 20ms). The pipes are used to filter the traffic, and selectively apply the delay only to the traffic we care abot. We then generate the state transition graph at different levels of delays, to see the differences.
 The actors of the communication, in our case, are two threads: one that sends data, and the other that receives it. The dimension of the buffer passed to the \codeword{write(2)} system call are 128KB for the state-machine generation, and 1MB for the remaining graphs.
 The total amount of data transferred is 16MB for each benchmark run.
 
@@ -317,6 +330,28 @@ The packet losses have been identified by an ACK received three times from the s
 Regarding the automatically sized buffer case, figure \ref{fig:10ms_auto}, it is possible to notice that the limiting factor before the packet loss was the receiver available size. The congestion window never increases above the receiver maximum available buffer size. After the packet loss (identified by the red dot), the slow start threshold is lowered to half the congestion window (in green in the graph). The initial part of the slow start threshold (before the packet loss), is not displayed in the graph, and can be considerate arbitrarily high. However, soon after (at second 1.8) the receiver buffer returns to limit its increase (for the last time). Afterwards, the receiver buffer is not a limiting factor anymore, so the congestion window can proceed with the exponential growth.
 An explanation of the extremely high growth in figure \ref{fig:10ms_auto} between the two packet loss is that an high number of acknowledgements have been received in a short amount of time: each one of them increased the congestion window by one MSS.
 
+\subsection{FreeBSD automatic resize policy}
+
+\begin{markdown}
+Looking into the buffer resizing policy of the OS might help to explain the behaviours recorded. From figure \ref{fig:10ms_wnd} it is clear that the resizing happens adding a constant step to the current buffer size. This is confirmed by FreeBSD 11 code. From \cite{tcp\_input} it is possible to see that the variable `tcp_autorcvbuf_inc` is defined as:
+~~~c
+VNET_DEFINE(int, tcp_autorcvbuf_inc) = 16*1024;
+// ...
+VNET_DEFINE(int, tcp_autorcvbuf_max) = 2*1024*1024;
+~~~
+And then, later, in `tcp_autorcvbuf` it is used to compute the new size:
+~~~c
+newsize = min(so->so_rcv.sb_hiwat +
+          V_tcp_autorcvbuf_inc, V_tcp_autorcvbuf_max);
+~~~
+However, in new versions of FreeBSD, the resizing policy is different. As an example, in the current FreeBSD 13, the policy is the following:
+~~~c
+newsize = min((so->so_rcv.sb_hiwat + (so->so_rcv.sb_hiwat/2)), V_tcp_autorcvbuf_max);
+~~~
+In this case, the new buffer size will be the actual one, plus half itself.
+With this new buffer resizing policy, it is likely the results were different, with a smaller gap between the two policies at higher latencies.
+\end{markdown}
+
 \subsection{Bandwidth for each imposed latency}
 
 \begin{figure}[h]
@@ -351,7 +386,29 @@ In addition, The buffer slow growth rate limits the slow start growth even more.
 To have an indication of the performance overhead caused by DTrace we use the verbose benchmark output. In this mode, the measured transfer loop time is printed to stdout. The benchmark is executed for each lantency value with and without the DTrace instrumentation running. Even if it does not provide a measurment as precise as the DTrace one, it gives a clear indication of the probes effect.
 In particular, it is used the DTrace script that prints all the data when a packet is received, ignoring the DTrace output, and only gathering the stdout of the benchmark.
 
-As we can see from figures \ref{} and \ref{}, the instrumentation performance overhead is significant with low latencies, but nearly negligible with latency values starting from 10 milliseconds. We can explain this with the high bandwidth, and as a consequence, TCP packets exchanged at this latency. This justify the choice to do a detailed analysis on an instance of transfer at 10ms. From the evidences, the probe effect is not worth considering in section \ref{sec:tcp_variables}.
+\begin{figure}[]
+\begin{subfigure}{0.5\textwidth}
+   \centering
+   \includegraphics[width=\textwidth]{images/fixed_probe_effect.png}
+   \caption{Probe effect for fixed buffers}
+   \label{fig:fixed_probe}
+\end{subfigure}
+\qquad
+\begin{subfigure}{0.5\textwidth}
+   \centering
+   \includegraphics[width=\textwidth]{images/auto_probe_effect.png}
+    \caption{Probe effect for automatic buffers}
+    \label{fig:auto_probe}
+\end{subfigure}
+
+\caption[short]{Bandwidth comparison with and without DTrace instrumentation enabled}
+\label{fig:probe_effect}
+\end{figure}
+
+
+As we can see from figures \ref{fig:fixed_probe} and \ref{fig:auto_probe}, the instrumentation performance overhead is significant with low latencies, but nearly negligible with latency values starting from 10 milliseconds. We can explain this with the high bandwidth, and as a consequence, TCP packets exchanged at this latency. This justify the choice to do a detailed analysis on an instance of transfer at 10ms. From the evidences, the probe effect is not worth considering in section \ref{sec:tcp_variables}.
+
+It is possible to notice an high variability in the measurments with DTrace instrumentation active, expecially with fixed buffer sizes. A potential cause might be that the big fixed socket buffer uses most of the space available in kernel, and the buffers used by DTrace to process the output are smaller, causing a different flushing policy that sometime results in an increased bandwidth.
 
 Regarding the analysis of the state machine transitions, the probes fired a very limited amount of times (one for every arch in each graph), and it is definetely unlikely that they changed the result in an way. As a comparison, the output of DTrace in the creation of the state transition graph counts always less than 15 lines (so, 15 probes activations), while the output of all the variables when a packet is received always counts more than 140.000 lines (and probe invocations).
 

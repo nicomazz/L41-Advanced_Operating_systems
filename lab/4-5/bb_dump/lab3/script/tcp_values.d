@@ -1,8 +1,9 @@
 
-/*#pragma D option bufsize=3M
+#pragma D option bufsize=3M
 #pragma D option bufresize=manual
 #pragma D option quiet
-*/
+
+
 fbt::tcp_do_segment:entry
 /args[1]->th_sport == htons(10141) || args[1]->th_dport == htons(10141)/
 { 
