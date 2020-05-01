@@ -5,9 +5,6 @@ BIB=references.bib
 all:
 	latexmk -bibtex -pdf $(NAME) --jobname=$(NAME)-final -output-directory=build
 	cp -f "build/$(NAME)-final.pdf" "$(NAME).pdf"
-draft:
-	latexmk -bibtex -pdf $(NAME) --jobname=$(NAME)-draft --output-directory=build-draft
-	cp -f "build-draft/$(NAME)-draft.pdf" "$(NAME)-draft.pdf"
 
 clean:
 	latexmk -C $(NAME)

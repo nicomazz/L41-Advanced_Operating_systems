@@ -230,6 +230,23 @@ def benchmark_tcp_bandwith(latencies=[], flags="",
     return result
 
 
+def merge_bandwidth_files(files, output_name):
+    if len(files) <= 1: return
+
+    res = defaultdict(list)
+    batches = []
+    for file in files:
+        data = read_json_file(file)
+        xvs = data['latencies']
+        total_size = 16 * 1024 * 1024
+        read_performance_values = [int(i) for i in data['output']]
+        res['latencies'] += xvs
+        res['output'] += data['output']
+
+    if len(output_name) > 0:
+        save_output(res, output_name)
+
+
 def plot_tcp_bandwidth(input_data_file,
                        title=None,
                        label=None,
@@ -250,7 +267,7 @@ def plot_tcp_bandwidth(input_data_file,
 
     # Compute the IO bandwidth in KiBytes/sec
     io_bandwidth_values = convert_in_bandwith(read_performance_values,
-                                              total_size)
+                                              float(total_size))
 
     return plot_graph(
             xvs=xvs,
@@ -300,9 +317,7 @@ def benchmark_variables(latency=10, flags="", output_name="", trials=1):
 
 
 def benchmark_tcp_without_dtrace(script=print_all_variables_d_script,
-                                 name_prefix=""):
-    modes = ["", "-s"]
-    trials = 10
+                                 name_prefix="", trials=5, modes=["", "-s"]):
     for mode in modes:
         flags = "{} -v".format(mode)
         out_name = "tcp_{}_{}_wno_dtrace.json".format(name_prefix, mode)
@@ -311,7 +326,7 @@ def benchmark_tcp_without_dtrace(script=print_all_variables_d_script,
 
         benchmark_tcp_bandwith(latencies=range(0, 41, 5), flags=flags,
                                trials=trials,
-                               dtrace_script=print_all_variables_d_script,
+                               dtrace_script=script,
                                ignore_dtrace_output=True,
                                output_name=out_name)
         print("{} generated".format(out_name))
@@ -320,12 +335,13 @@ def benchmark_tcp_without_dtrace(script=print_all_variables_d_script,
 def plot_tcp_time_from_output(input_data_file,
                               title=None,
                               label=None,
-                              trials=10,
+                              trials=5,
                               save_name=None,
                               ax=None,
                               y_label="Bandwith (KB/s)",
-                              x_label="Latency(KB)",
-                              dotted=True
+                              x_label="Latency(ms)",
+                              dotted=True,
+                              color=None
                               ):
     # Plot the read performance (IO bandwidth against buffer size with error
     # bars)
@@ -349,6 +365,7 @@ def plot_tcp_time_from_output(input_data_file,
             title=title,
             label=label,
             trials=trials,
+            color=color,
             save_name=save_name,
             axis=ax,
             y_label=y_label,

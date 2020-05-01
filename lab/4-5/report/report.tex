@@ -119,6 +119,7 @@ generic things to do
 - [ ] mark start of congestion avoidance
 - [ ] graph with all the bandwidth
 - [ ] retake data for overall bandwidth
+- [ ] profile to see what happens
 
 generic things to investigate
 - [ ] why is the bandwidth higher at 5ms delay
@@ -137,37 +138,38 @@ generic things to investigate
 
 \section{Introduction}
 
-The Transmission Control Protocol (TCP)
+The Transmission Control Protocol (TCP) is a protocol commonly used to exchange ordered, reliable and bi-directional streams of bytes over the IP protocol. Comunication endpoints are identified by the couple (IP address) and (port number). 
+To ensure reliability across the connection, it is implemented has a state machine. An initial "sync" between the two endpoint is called "tree-way handshake". It's purpose is to exchange the sequence numbers, and initialize all the kernel structures in the endpoints.
+After this initial handshake, the connection is in the "enstablished" state, where data can be exchanged.
+The end of the connection requires another sequence of "FIN" packages to be exchanged by each endpoint. It can be initiated by one host, or by both at the same time. The latter option is compatible with a network with latentency.
 
-- tcp connections as state machines
+TCP packages go trough a network composed by many different intermediate devices, and it is nearly impossible to know in advance the available bandwidth. For this reason, TCP implements congestion control techniques to discover the maximum avilable mandwith. This requires an initial time where the transfer happens at reduced speed, but depending on the network latency it enventually converge to a speed near to real link one.
+
 \subsection{Congestion control}
 The tcp congestion control takes into account two different factors: 
 \begin{enumerate}
    \item The receiver available space. Each receiver operates with a finite
       amount of space to accomodate the data received. If this space ends, the
-      receiver has to drop new packets. For this reason, in every ACK packet
+      receiver has to drop new packets. For this reason, in every ACK packet (sent from the receiver to the sender)
       the receiver inserts and advertised window size, based on the amount of
       space in the receive socket buffer. this variable will be called
-      'Advertised window' from now on. Its name in the FreeBSD implementation
-      is \codeword{snd_wnd}.  
+      'Advertised window' from now on. 
    \item The network effective capacity. Every network link has a finite
       capacity. Trying to transmit more data than the network infrastructure
       can handle would result in packets loss. When the receiver has a gap in
       the sequence numers (caused by a packet loss), it will send a duplicate
       ACK to hints the sender the the packet should be retransmitted. This
-      influences the value of the congestion window.  This variable will be
-      called 'Congestion window', and is kept as a state variable on each side
-      of the TCP connection. Its name in the FreeBSD implementation is
-      \codeword{snd_cwnd}, and it is changed according to three different
-      phases (even if all the implementations might slighly differ).
+      influences the value of the congestion window.  This is kept as a state variable on each side
+      of the TCP connection, and it is changed according to three different
+      phases (even if all the actual implementations might slighly differ).
 \end{enumerate}
-The congestion window change is handled in three different phases, well described in the RFC 5681\ref{RFC_5681}:
+The congestion window change is handled in different phases, well described in the RFC 5681\ref{RFC_5681}:
 \begin{itemize}
-   \item Slow start. In this phase, the congestion window is increased by one MSS for each acknowledgement received. This results in an exponential increase.
-   \item Congestion avoidance
-   \item Fast recovery
+   \item Slow start. In this phase, the congestion window is increased by one MSS for each acknowledgement received. This results in an exponential increase. However, this growth is limited by the advertised window: a limited advertised window might cause this phase to be all but exponential. Once a congestion is detected (trough duplicate ACKs) the variable \codeword{ssthreshould} is set to half of the congestion window, and the slow start begins again. Once the congestion window reaches the "slow start threshold", the phase switches to congestion avoidance.
+   \item Congestion avoidance. In this phase there is a more cautious increase of the congestion window. The growth is not exponential anymore, but aims to be linear. In the case of a timeout, the phase returns to slow start with a slowstart threshold half the congestion window.
+   \item Fast recovery. This phase is entered once a duplicate ACK is received in either of the previous states, and allows to resend the missing packet before waiting for the end of the timeout associated with it.
 \end{itemize}
-The effective bandwidth is then set based on the minimum between the receiver available buffer size, and the congestion window.
+The effective bandwidth is then dependent on the minimum between the receiver available buffer size, and the congestion window.
 
 \section{Experimental setup and methodology}
 
@@ -223,7 +225,6 @@ During the tracing, several other processes were running, and this might have in
 \end{itemize}
 
 
-
 \section{Results and discussion}
 
 \subsection{TCP state-transition diagram}
@@ -267,6 +268,7 @@ There is another small difference between the generated graph and the RFC one. T
 
 
 \subsection{TCP variables across time}
+\label{sec:tcp_variables}
 
 
 \begin{figure}[]
@@ -327,25 +329,42 @@ An explanation of the extremely high growth in figure \ref{fig:10ms_auto} betwee
 Figure \ref{fig:bandwidth} shows the bandwidth versus the DUMMYNET-imposed latency. We can notice that the bandwidth decrease is not linear. It remains almost constant until a latency of 5ms, when if suddently drops at 10ms. At 20ms, it halves again, to then stay stationary from 30ms onwards.
 The socket-buffer autoresizing does not always result in a performance increase. We can notice different phases:
 \begin{itemize}
-   \item With low latencies, until 5ms, the auto-resizing policy allows an higher bandwidth. However, at 5ms we can notice an high variability in the values gathered with an automatic resizing policy.  With a latency of 0ms %todo actually, not? 
-      
+   \item With low latencies, until 5ms, the auto-resizing policy allows an higher bandwidth. %todo why?
+
    \item From a latecy of 10ms the overall bandwidth drops steadily. From 10ms to 25ms, the benchmark with statically sized buffers is always slighly faster than the other one, but comparable.
    \item From 30ms onwards the statically sized one allows a bandwidth more than double the autosized one. %todo because slow start doesn't gor as fast as the other
 \end{itemize}
 
 There can be multiple reasons for this trend. 
-An increased latency limits the congestion window grow rate, and as a consequence the overall bandwidth, because the final transfer rate will be reached more slowly. In our case, we are exchanging only 16 MB of data. As we will see in the following section, at some latency TCP is barely able to exit from the slow start phase, so it did not already find the full bandwidth available.
+An increased latency limits the congestion window grow rate, and as a consequence the overall bandwidth, because the final transfer rate will be reached more slowly. In our case, we are exchanging only 16 MB of data. As it is possible to see from figure\ref{fig:40_cwnd}, at high latencies TCP is not able to exit from the slow start phase, so it did not already find the full bandwidth available.
+In addition, The buffer slow growth rate limits the slow start growth even more.
 
-
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{images/40_cwnd_comparison.png}
+\caption{Congestion window with an imposed latency of 40ms. It is possible to notice how, with fixed size buffers, the slow start never finishes.}
+\label{fig:40_cwnd}
+\end{figure}
 
 \subsection{Probe effect}
+
+To have an indication of the performance overhead caused by DTrace we use the verbose benchmark output. In this mode, the measured transfer loop time is printed to stdout. The benchmark is executed for each lantency value with and without the DTrace instrumentation running. Even if it does not provide a measurment as precise as the DTrace one, it gives a clear indication of the probes effect.
+In particular, it is used the DTrace script that prints all the data when a packet is received, ignoring the DTrace output, and only gathering the stdout of the benchmark.
+
+As we can see from figures \ref{} and \ref{}, the instrumentation performance overhead is significant with low latencies, but nearly negligible with latency values starting from 10 milliseconds. We can explain this with the high bandwidth, and as a consequence, TCP packets exchanged at this latency. This justify the choice to do a detailed analysis on an instance of transfer at 10ms. From the evidences, the probe effect is not worth considering in section \ref{sec:tcp_variables}.
+
+Regarding the analysis of the state machine transitions, the probes fired a very limited amount of times (one for every arch in each graph), and it is definetely unlikely that they changed the result in an way. As a comparison, the output of DTrace in the creation of the state transition graph counts always less than 15 lines (so, 15 probes activations), while the output of all the variables when a packet is received always counts more than 140.000 lines (and probe invocations).
+
 
 \section{Conclusions}
 
 In conclusion, we have verified that the FreeBSD TCP state machine implementation follows the specifications described in the RFC 793\cite{postel_transmission_nodate}, and witnessed the closing behaviour in presence of various values of latency.
 
 The relationship between round-trip latency and bandwidth has been proven not linear in either buffer resizing policy cases. The reasons can be find in the effect of latencies in the TCP congestion window growth. An increased latency will slow down the discovery of the effective link bandwidth. 
-Socket-buffer auto-resizing has been proven useful with very small latencies (less than 10ms). However, the slow buffer growth rate is the limiting factor for the slow start phase with higher latencies. Whereas, in the slow start phase, the congestion window is further limited by the receiver buffer size, the measurments showed was impossible to achieve an exponential growth rate in the initial phase. However, after the initial phases, even with higher latencies the final bandwidth value is comparable. Still, with a latency of 40ms TCP did not manage to exit from the initial slow start before finishing the data transfer. All the benchmark executed at higher latencies are strongly affected by the fact that the inital slowstart did not finish. With higher data sizes, it is reasonable to expect a smaller gap between latencies. Ideally, with an infinite amount of data, assuming the same network conditions, the final bandwidth should converge to a single value. % todo ref figure with all the benchmarks
+Socket-buffer auto-resizing has been proven useful with very small latencies (less than 10ms). However, the slow buffer growth rate is the limiting factor for the slow start phase with higher latencies. 
+Whereas, in the slow start phase, the congestion window is further limited by the receiver buffer size, the measurments showed that was impossible to achieve an exponential growth rate in the initial phase. However, after the initial phases, even with higher latencies the final bandwidth value is comparable. 
+Still, with a latency of 40ms TCP did not manage to exit from the initial slow start before finishing the data transfer. 
+All the benchmark executed at higher latencies are strongly affected by the fact that the inital slowstart did not finish. With higher data sizes, it is reasonable to expect a smaller gap between final bandwidth. 
 
 \newpage
 
