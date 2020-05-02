@@ -717,10 +717,14 @@ def plot_tcp_seq(latency):
         #ax.set_ylim((4.12 * 1e9, 4.13 * 1e9))
 
 def plot_tcp_ack(latency):
-    for (file, label) in zip([latency_name(latency), latency_name_s(latency)], BUFF_LABELS)[:1]:
+    axes = []
+
+    for (file, label) in zip([latency_name(latency), latency_name_s(latency)], BUFF_LABELS):
         ax = plot_variable(file,
                       "th_ack",
                       sender_side=True)
+        axes.append(ax)
+    return axes
         #ax.set_ylim((4.12 * 1e9, 4.13 * 1e9))
 
 
@@ -731,9 +735,10 @@ def plot_tcp_cwnd_wnd_ssthresh(latency):
         title = "Congestion window, adv window and slow start " \
                 "threshold " \
                 "for {}ms latency ({})".format(latency, label)
-        save_name = "{}_cwnd_wnd_comparison.png"
+        save_name = "{}_cwnd_wnd_comparison.png".format(latency)
         ax = plot_variable(file, "snd_cwnd", sender_side=True,
-                           filter_maximum=True)
+                           filter_maximum=True
+                           )
         plot_variable(file, "snd_ssthresh", sender_side=True,
                       filter_maximum=True,
                       ax=ax)
@@ -745,9 +750,9 @@ def plot_tcp_cwnd_wnd_ssthresh(latency):
         # ax2.tick_params(axis='y', labelcolor=y_color)
         # ax.set_yscale("log")
 
-        # limit_ax(ax, latency)
+        limit_ax(ax, latency)
         # limit_ax(ax2, latency)
-        plot_packet_loss(file, ax, min_loss_cnt=2)
+        plot_packet_loss(file, ax, min_loss_cnt=3)
         ax.figure.savefig(save_name)
         axes.append(ax)
 

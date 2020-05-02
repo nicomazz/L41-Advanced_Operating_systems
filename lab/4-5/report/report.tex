@@ -129,10 +129,10 @@ generic things to do
 - [ ] Add image of 0ms (or 5ms?) to justify why the overall bandwidth is higher.
 
 generic things to investigate
-- [ ] why is the bandwidth higher with resizing buffers at small latencies
-- [ ] write about the dtrace buffer limitation
-- [ ] Explore the effects of socket-buffer limits and stack graph information on the flow-control versus congestion-control limits. How does socket-buffer auto-resizing help/hurt/not change performance? 
-- [ ] describe probe effect, if any?
+- [x] why is the bandwidth higher with resizing buffers at small latencies
+- [x] write about the dtrace buffer limitation
+- [x] Explore the effects of socket-buffer limits and stack graph information on the flow-control versus congestion-control limits. How does socket-buffer auto-resizing help/hurt/not change performance? 
+- [x] describe probe effect, if any?
 - [ ] dtrace precision problem; There are many timestamps that are the same:v (put this in limitations)
 \fi
 
@@ -292,7 +292,7 @@ There is another small difference between the generated graph and the RFC one. T
 \label{fig:tcp_variables}
 \end{figure}
 
-Figure \ref{fig:tcp_variables} compares the various TCP variables in the case of auto-resize and fixed buffers. Those graphs can help to understand the differences in the bandwidth achieved at the various latencies, displayed in figure \ref{fig:bandwidth}. 
+Figure \ref{fig:tcp_variables} compares the various TCP variables in the case of auto-resize and fixed buffers with a latency set to 10ms. This value of latency, as shown in the probe effect evaluation, does not have an high overhead caused by DTrace. Those graphs can help to understand the differences in the bandwidth achieved at the various latencies, displayed in figure \ref{fig:bandwidth}. 
 
 Figure \ref{fig:10ms_wnd} shows the advertised available buffer size in the receiver. From the comparison between the two buffer sizing policies, it is clear that the fixed-size one oversizes the buffer. The bandwidth never allows having more than half of it filled. During the initial slow-start phase, it can be seen how the buffer gets filled fastly. Afterwards, the available space always remains above 8 MB. However, as an effect of bandwidth increase over time, it is possible to see how the buffer gets filled more at every period from 0.6 seconds afterwards. As a consequence of the oversizing, the available space is never a limiting factor for the connection speed in this instance. 
 On the other side, the automatically resized one has a more cautious approach: the initial buffer sizes seems to increase slowly with time. An available receiving buffer size near to 0 is often reached. After each one of those events, the buffer size seems to increase slightly. Up until 1.8s, the receiver buffer size is the limiting factor for the overall bandwidth. 
@@ -305,6 +305,30 @@ The packet losses have been identified by an ACK received three times from the s
 Regarding the automatically sized buffer case, figure \ref{fig:10ms_auto}, it is possible to notice that the limiting factor before the packet loss was the receiver available size. The congestion window never increases above the receiver maximum available buffer size. After the packet loss (identified by the red dot), the slow start threshold is lowered to half the congestion window (in green in the graph). The first part of the slow start threshold (before the packet loss), is not displayed in the graph and can be considerate arbitrarily high. However, soon after (at second 1.8) the receiver buffer returns to limit its increase (for the last time). Afterwards, the receiver buffer is not a limiting factor anymore so that the congestion window can proceed with the exponential growth.
 An explanation of the extremely high growth in figure \ref{fig:10ms_auto} between the two packet loss is that a high number of acknowledgements received in a short amount of time: each one of them increased the congestion window by one MSS.
 
+
+\begin{figure}[]
+\begin{subfigure}{\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{images/5_cwnd_wnd_comparison_auto.png}
+    \caption{TCP windows during a transfer size with 5ms latency, automatic buffer resizing}
+    \label{fig:5ms_wnd_auto}
+\end{subfigure}%
+\qquad
+\begin{subfigure}{\textwidth}
+   \centering
+   \includegraphics[width=\textwidth]{images/5_cwnd_wnd_comparison_fixed.png}
+   \caption{TCP windows during a transfer size with 5ms latency, fixed buffer size}
+   \label{fig:5ms_wnd_fixed}
+\end{subfigure}
+\caption[short]{TCP variables comparison during 5 ms latency transfer}
+\label{fig:tcp_variables_5ms}
+\end{figure}
+
+
+It is interesting to notice what happens with a latency of 5ms, as shown in figure \ref{fig:tcp_variables_5ms}. Here, the scale of the x and y-axis is the same, even if the duration of the transfer is different. As figure \ref{fig:bandwidth} shows, up until 5ms, the bandwidth of the automatic buffer resizing is higher. 
+Analyzing figure \ref{fig:5ms_wnd_fixed}, representing the fixed buffer size case, we can notice how the slow start phase spikes immediately, resulting in a slow-start threshold much higher than the automatic buffer case in figure \ref{fig:5ms_wnd_auto}. Soon after the packet loss is reached, we can see how the congestion window remains at zero for more than 100 milliseconds. The reason is likely to be a timer in the sender. The sender might not have received an ACK for a packet.
+On the other side, the automatic buffer case maintains a slower growth rate in the slow start phase, that allows the exchange of more data before starting the congestion avoidance phase. In both cases, we can notice a long gap after the first congestion avoidance phase. Since no packet loss resulting in three different acknowledgements is displayed in the graph, it is likely generated by a timer in the sender: the receiver was not able to receive any packages from a point forward, no it was not able to signal the packets loss.
+However, the faster result of the automatic buffer case has been accomplished only because of the limited size of data exchanged: the slow start threshold is higher in the fixed-sized buffer, so the final bandwidth during the congestion avoidance phase is higher as well.
 \subsection{FreeBSD automatic resize policy}
 
 \begin{markdown}
