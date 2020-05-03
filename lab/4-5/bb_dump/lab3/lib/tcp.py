@@ -439,6 +439,8 @@ def ms(n): return n * ONE_MS
 
 
 def avg(l):
+    if len(l) == 0:
+        return 0
     return sum(l) / len(l)
 
 
@@ -515,7 +517,7 @@ def smooth_avg(xvs, yvs, factor=20, times=1):
     return xvs, yvs
 
 
-def calc_bandwidth(times, seq):
+def calc_bandwidth(times, seq, smooth=True):
     cur_time = times[0]
     bws = []
 
@@ -527,33 +529,49 @@ def calc_bandwidth(times, seq):
 
     res_bw = []
     res_t = []
-    for ((t0, s0), (t1, s1)) in zip(bws[::2], bws[1::2]):
+    for ((t0, s0), (t1, s1)) in zip(bws[::], bws[1::]):
         dt = t1 - t0
         ds = s1 - s0
         bw = ds * 1e6 / dt
         res_t.append(t0)
         res_bw.append(max(bw, 0))
+    if not smooth:
+        return res_t, res_bw
+    return smooth_avg(res_t, res_bw, factor=2, times=4)
 
-    return smooth_avg(res_t, res_bw, factor=2, times=2)
 
+def bandwidth_millis(times, seq, dt=ONE_MS * 20):
+    t0 = times[0]
+    times = [t - t0 for t in times]
+    max_t = times[-1]
+    results = [[] for _ in range((max_t / dt) + 1)]
 
+    for (t, s) in zip(times, seq):
+        att_t = int((t+dt/2) / dt)
+        results[att_t].append(s)  # todo try average!
+
+    times = range(0, max_t, dt)
+    seq = [avg(i) for i in results]
+    xvs, yvs = calc_bandwidth(times, seq, smooth=False)
+    return smooth_avg(xvs, yvs, factor=2, times=2)
 #  return res_t, res_bw  # smooth_avg(times, tps)
 
 
 ## resolution in milliseconds
-def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
+def plot_tcp_bandwidth_across_time(input_name, ax=None, label=None,
                                    title=None,
-                                   sender_side=True, save_name=None, xlim=None):
+                                   sender_side=True, save_name=None, xlim=None, dotted=False,
+                                   calc_bandwidth_function=calc_bandwidth):
     tmp = extract_tcp_variables(input_name)
     initial_size = len(tmp["timestamp"])
-    tmp = filter_variables(tmp, sender_side)
+    tmp = filter_variables(tmp, not sender_side)
     assert len(tmp["timestamp"]) < initial_size
     variables = tmp
 
     time = variables["timestamp"]
-    seq = variables["th_seq"]
+    seq = variables["th_ack"]
 
-    xvs, yvs = calc_bandwidth(time, seq)  # easy_bandwidth(time, seq)  #
+    xvs, yvs = calc_bandwidth_function(time, seq)  # easy_bandwidth(time, seq)  #
     # compute_bandwidth(time, seq)
     offset = xvs[0]
     xvs = [t - offset for t in xvs]
@@ -567,10 +585,12 @@ def plot_tcp_bandwidth_across_time(input_name, axis=None, label=None,
             label=label,
             trials=1,
             title=title,
-            axis=axis,
+            axis=ax,
             x_ticks=x_ticks,
             xlim=xlim,
-            save_name=save_name
+            save_name=save_name,
+            linestyle="--" if dotted else "-",
+            alpha=0.5 if dotted else 1.0
     )
 
 
@@ -759,21 +779,48 @@ def plot_tcp_cwnd_wnd_ssthresh(latency):
     return axes
 
 
-def compare_bandwidth(latency):
+def compare_bandwidth(latency, func=calc_bandwidth):
     title = "TCP bandwith across time with {}ms latency".format(latency)
     save_name = "{}_bandwidth.png".format(latency)
     ax = plot_tcp_bandwidth_across_time(latency_name(latency),
                                         label=AUTO_BUFFER,
-                                        sender_side=False)
+                                        sender_side=False,
+                                        calc_bandwidth_function=func)
     # plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
 
     plot_tcp_bandwidth_across_time(latency_name_s(latency),
                                    title=title,
-                                   axis=ax,
+                                   ax=ax,
                                    label=FIXED_BUFF,
-                                   sender_side=False)
+                                   sender_side=False,
+                                   calc_bandwidth_function=func)
     # plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
 
+    limit_ax(ax, latency)
+    ax.set_yscale('log')
+    ax.figure.savefig(save_name)
+
+
+def compare_bandwidth_dotted(latency, ax=None):
+    save_name = "{}_cwnd_w_bandwidth.png".format(latency)
+    if ax is not None:
+        ax = ax.twinx()
+
+    ax = plot_tcp_bandwidth_across_time(latency_name(latency),
+                                        label=AUTO_BUFFER + " bandwidth",
+                                        ax=ax,
+                                        sender_side=False,
+                                        dotted=True)
+    # plot_packet_loss(latency_name(latency), ax, "Packet loss (Auto)")
+
+    plot_tcp_bandwidth_across_time(latency_name_s(latency),
+                                   ax=ax,
+                                   label=FIXED_BUFF + " bandwidth",
+                                   sender_side=False,
+                                   dotted=True)
+    # plot_packet_loss(latency_name_s(latency), ax, "Packet loss (Fixed)")
+    ax.legend(loc=9)  # lower right
+    ax.set_ylabel("Bandwidth (KB/s)")
     limit_ax(ax, latency)
     ax.set_yscale('log')
     ax.figure.savefig(save_name)
