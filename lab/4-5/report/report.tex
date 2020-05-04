@@ -90,7 +90,7 @@ sorting=ynt
 \thispagestyle{empty}
 
 \begin{abstract}           
-   This experiment is about an investigation of the TCP protocol and its implementation in the FreeBSD operating system. Firstly, we compare the state machine described in the TCP specifications (RFC 793\cite{RFC793}) with the actual one in FreeBSD. Thanks to DUMMYNET, it is possible to witness and compare the behaviour of the TCP stack with different network latencies. Secondly, we investigate the effect of latency on bandwidth across time, analysing how the various congestion control techniques behave. We put particular attention into the comparison between automatic buffer resizing versus fixed size one.
+   This experiment is about an investigation of the TCP protocol and its implementation in the FreeBSD operating system. Firstly, we compare the state machine described in the TCP specifications (RFC 793\cite{RFC793}) with the actual one in FreeBSD. Thanks to DUMMYNET, it is possible to witness and compare the behaviour of the TCP stack with different network latencies. Secondly, we investigate the effect of latency on bandwidth across time, analysing how the various congestion control techniques behave. We put particular attention into the comparison between automatic socket buffer resizing versus fixed size one.
 
    As a result, it is highlighted the connection between RTT (Round-Trip Time) and bandwidth.  Setting the size of socket buffers avoid expensive resizing on the way to the final bandwidth, resulting in the reach of a stable bandwidth in a faster way. The automatic socket buffer resizing policy makes the initial slow-start phase slower in all the tests. Since the congestion window is limited by the receiver available buffer size, with automatic buffer resizing the slow start phase increase is not exponential anymore and depends on the effective resizing policy. In the specific FreeBSD version used by the board, the buffer is incremented by small steps every time. While this gradual increase of the congestion window results in higher bandwidth for low latency, it is the main bottleneck to the speed of the slow start phase at higher latencies.
 \end{abstract}
@@ -208,7 +208,7 @@ After each benchmark run, two seconds have been added before stopping the DTrace
 The verbose benchmark output, containing the IPC loop duration measured from the program and printed to stdout, is then used to evaluate the probe-effect caused by DTrace.
 
 
-All the benchmark runs are executed 11 times for each parameter value, dropping the first one. In each graph, it is possible to see the error as a vertical line. However, in almost all cases, this error is negligible, highlighting a controlled benchmarking environment. The value on the graphs is the median of the 10 measurements.
+All the benchmark runs are executed 11 times for each parameter value, dropping the first one. TCP host caches are flushed before each benchmark run. In each graph, it is possible to see the error as a vertical line. However, in almost all cases, this error is negligible, highlighting a controlled benchmarking environment. The value on the graphs is the median of the 10 measurements.
 
 While the DTrace instrumentation covers both sender and receiver, the graphs only contain value from the sender. In the case of bandwidth measurements, we use the timestamps and ACK to give a rought estimate. In the other cases, packets are filtered by destination port.
 
@@ -257,9 +257,9 @@ We generated TCP state transition graphs with different latency values, from 0ms
 \end{itemize}
 
 This behaviour is clearly explained in the RFC 793\cite{RFC793} on page 42. In the former case, it happens that the server sends the close packet (with the \codeword{FIN}), then the client receives it before closing the connection itself.
-In the latter case, we have that due to the latency, the connection is closed simultaneously by both actors. None of them receives the other FIN before sending its own FIN is sent. For this reason, they both switch to fin-wait-1. When they receive each other FIN, they switch to closing, and after having received the ACK of the FIN, they go to the time-wait state.
+In the latter case, we have that due to the latency, the connection is closed simultaneously by both actors. None of them receives the other FIN before sending its own FIN. For this reason, they both switch to fin-wait-1. When they receive each other FIN, they switch to closing, and after having received the ACK of the FIN, they go to the time-wait state.
 
-There is another small difference between the generated graph and the RFC one. The server, does not transition from listen to \codeword{syn-received}, but from closed to \codeword{syn-receive}. In the RFC graph, there are other transitions not performed during the benchmark, related to cases such as the closing of a connection before the proper establishment.
+There is another small difference between the generated graph and the RFC one. The server, does not transition from \codeword{listen} to \codeword{syn-received}, but from \codeword{closed} to \codeword{syn-receive}. In the RFC graph, there are other transitions not performed during the benchmark, related to cases such as the closing of a connection before the proper establishment.
 
 % todo probe effect? in this case not relevant I think, but how to mseasure it? probably overall time at each delay level?
 
@@ -303,10 +303,10 @@ There is another small difference between the generated graph and the RFC one. T
 
 Figure \ref{fig:tcp_variables} compares the various TCP variables in the case of auto-resize and fixed buffers with a latency set to 10ms. This value of latency, as shown in the probe effect evaluation, does not have an high overhead caused by DTrace. Those graphs can help to understand the differences in the bandwidth achieved at the various latencies, displayed in figure \ref{fig:bandwidth}. 
 
-Figure \ref{fig:10ms_wnd} shows the advertised available buffer size in the receiver. From the comparison between the two buffer sizing policies, it is clear that the fixed-size one oversizes the buffer. The bandwidth never allows having more than half of it filled. During the initial slow-start phase, it can be seen how the buffer gets filled fastly. Afterwards, the available space always remains above 8 MB. However, as an effect of bandwidth increase over time, it is possible to see how the buffer gets filled more at every period from 0.6 seconds afterwards. As a consequence of the oversizing, the available space is never a limiting factor for the connection speed in this instance. 
+Figure \ref{fig:10ms_wnd} shows the advertised available buffer size in the receiver. From the comparison between the two buffer sizing policies, it is clear that the fixed-size one oversizes the buffer. The bandwidth never allows having more than half of it filled. During the initial slow-start phase, it can be seen how the buffer gets filled fastly. Afterwards, the available space always remains above 800 KB. However, as an effect of bandwidth increase over time, it is possible to see how the buffer gets filled more at every period from 0.6 seconds afterwards. As a consequence of the oversizing, the available space is never a limiting factor for the connection speed in this instance. 
 On the other side, the automatically resized one has a more cautious approach: the initial buffer sizes seems to increase slowly with time. An available receiving buffer size near to 0 is often reached. After each one of those events, the buffer size seems to increase slightly. Up until 1.8s, the receiver buffer size is the limiting factor for the overall bandwidth. 
 
-Figure \ref{fig:10ms_cwnd} shows the congestion window progress over time, with an overlay of the bandwidth. It is clear how the congestion window and the measured bandwidth are highly correlated. However, bandwidth dashed lines are the results of smoothing, and useful only as a general indication. In the slow start phase, two different progression strategies are adopted based on the buffer resizing policy. For fixed-size buffers, the congestion window increase is exponential, with a doubling at each step until a packet loss is witnessed. On the other hand, with an automatic resizing policy, the congestion window has a more linear increase, that takes more time to reach a packet loss. Once this happens, a new exponential increase is entered, until the slow start threshold is reached.
+Figure \ref{fig:10ms_cwnd} shows the congestion windows progress over time, with an overlay of the bandwidth. It is clear how the congestion window and the measured bandwidth are highly correlated. However, bandwidth dashed lines are the results of smoothing, and useful only as a general indication. In the slow start phase, two different progression strategies are adopted based on the buffer resizing policy. For fixed-size buffers, the congestion window increase is exponential, with a doubling at each step until a packet loss is witnessed. On the other hand, with an automatic resizing policy, the congestion window has a more linear increase, that takes more time to reach a packet loss. Once this happens, a new exponential increase is entered, until the slow start threshold is reached.
 In both cases, when the slow start threshold is met, it is possible to see the linear growth of the congestion avoidance phase, where the congestion window is slowly increased by one segment size every RTT.
 
 In figures \ref{fig:10ms_auto} and \ref{fig:10ms_fixed} we can compare what happens before and after the loss of a packet, and explain the reason why the increase is exponential in the fixed-sized case, and almost linear in the automatic buffer resizing case. 
@@ -371,13 +371,13 @@ With this new buffer resizing policy, our results might have been different, wit
    \label{fig:bandwidth}
 \end{figure}
 
+
 Figure \ref{fig:bandwidth} shows the bandwidth versus the DUMMYNET-imposed latency. We can notice that the bandwidth decrease is not linear. It remains almost constant until a latency of 5ms, when if suddenly drops at 10ms. At 20ms, it halves again, to then stay stationary from 30ms onwards.
 The socket-buffer auto-resizing does not always result in a performance increase. We can notice different phases:
 \begin{itemize}
-   \item With low latencies, until 5ms, the auto-resizing policy allows a higher bandwidth. % todo write the reason.
-
-   \item From a latency of 10ms, the overall bandwidth drops steadily. From 10ms to 25ms, the benchmark with statically sized buffers is always slightly faster than the other one, but comparable.
-   \item From 30ms onwards the statically sized one allows a bandwidth more than double the auto-sized one. %todo because slow start doesn't gor as fast as the other
+   \item With low latencies, until 5ms, the auto-resizing policy allows a higher bandwidth. As we can see from figure \ref{fig:tcp_variables_5ms}, the reason is that more data are exchanged during the slow start phase in the automatic buffer case. The fixed case is too intrepid and incurs in timeouts and packet losses faster.
+   \item From a latency of 10ms, the overall bandwidth drops steadily. From 10ms to 25ms, the benchmark with statically sized buffers is always slightly faster than the other one, but comparable. The latency had repercussions on the congestion window growth rate. It grows only after the receiving of new ACKs, and this time frame is constrained by the RTT (the sum of each latency). As seen in the previous section, the automatic socket buffer size is limited by the short step increment, that also limits the congestion window increase. For this reason, the congestion avoidance phase is reached later, and at a lower slow start threshold.
+   \item From 30ms onwards the statically sized one allows a bandwidth more than double the auto-sized one. This is due to the incredibly slow congestion window increase, that never goes out from the slow start phase.
 \end{itemize}
 
 There are multiple reasons for this trend. 
@@ -395,7 +395,7 @@ Also, The buffer slow growth rate limits the slow start growth even more.
 \subsection{Probe effect}
 
 To indicate the performance overhead caused by DTrace, and understand if this overhead might have biased our result, we use the verbose benchmark output. In this mode, the measured transfer loop time is printed to stdout. The benchmark is executed for each latency value with and without the DTrace instrumentation running. Even if it does not provide a measurement as precise as the DTrace one, it gives a clear indication of the probes effect.
-In particular, it is used the DTrace script that prints all the data when a packet is received, ignoring the DTrace output, and only gathering the stdout of the benchmark.
+In particular, the DTrace script that prints all the data when a packet is received is run, ignoring the DTrace output, and only gathering the stdout of the benchmark.
 \begin{figure}[]
 \begin{subfigure}{0.5\textwidth}
    \centering
@@ -417,7 +417,7 @@ In particular, it is used the DTrace script that prints all the data when a pack
 
 As we can see from figures \ref{fig:fixed_probe} and \ref{fig:auto_probe}, the instrumentation performance overhead is significant with low latencies, but nearly negligible with latency values starting from 10 milliseconds. We can explain this with the high bandwidth achieved at low latencies, and as a consequence, TCP packets exchanged at this latency. This justifies the choice to do a detailed analysis of an instance of transfer at 10ms. From the evidence, the probe effect is not worth considering in section \ref{sec:tcp_variables}.
 
-It is possible to notice a high variability in the measurements with DTrace instrumentation active, especially with fixed buffer sizes. A potential cause might be that the big fixed socket buffer uses most of the space available in the kernel, and the buffers used by DTrace to process the output are smaller, causing a different flushing policy that sometimes results in increased bandwidth.
+It is possible to notice a high variability in the measurements with DTrace instrumentation active, especially with fixed buffer sizes. A potential cause might be that the big fixed socket buffer uses most of the space available in the kernel, and the buffers used by DTrace to process the output are smaller, causing a different flushing policy that sometimes results in increased bandwidth. Even after repeating the measurement several more times, and ensuring that the TCP caches are flushed between each benchmark  run, this variability around 30ms remains.
 
 Regarding the analysis of the state machine transitions, the probes fired a minimal amount of times (one for every edge in each graph), and it is unlikely that they changed the result in any way. As a comparison, the output of DTrace in the creation of the state transition graph always counts less than 15 lines (so, 15 probes activations). The output of all the variables when a packet is received always counts more than 140.000 lines (and probe invocations).
 
@@ -426,7 +426,7 @@ Regarding the analysis of the state machine transitions, the probes fired a mini
 
 In conclusion, we have verified that the FreeBSD TCP state machine implementation follows the specifications described in the RFC 793\cite{RFC793}, and witnessed the closing behaviour in the presence of various values of latency.
 
-The relationship between round-trip latency and bandwidth has been proven not linear in either buffer resizing policy cases. The reasons can be found in the effect of latencies in the TCP congestion window growth. An increased latency slows down the discovery of the link bandwidth. 
+The relationship between round-trip latency and bandwidth has been proven not linear in both buffer resizing policy cases. The reasons can be found in the effect of latencies in the TCP congestion window growth. An increased latency slows down the discovery of the link capacity. 
 
 Socket-buffer auto-resizing has been proven useful with small latencies (less than 10ms). The reason is that the slower slow-start phase results in a higher congestion window for more time compared to the fixed buffer case, that started the congestion avoidance phase earlier, as can be seen from figure \ref{fig:tcp_variables_5ms}.
 However,  at higher latencies, the slow buffer growth rate is the limiting factor for the slow start phase, limiting the congestion window increase, impeding to achieve an exponential growth rate in the initial phase (figure \ref{fig:40_cwnd}).  
