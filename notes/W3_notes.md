@@ -45,6 +45,6 @@ vdso?
 From the syscall.master a lot of other things are generated (such as dtrace
 tracepoints
 
-profile-997 because 997 is a prime number and doesn't interfere with the dimer
+profile-997 because 997 is a prime number and doesn't interfere with the timer
 
 The amount of time went zeroing the new page
