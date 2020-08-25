@@ -40,7 +40,6 @@ The kernel has always the same address space
 - syscall: a trap that make userspace seem to call a function in the kernel, and
   the kernel to receive a function call
 
-vdso?
 
 From the syscall.master a lot of other things are generated (such as dtrace
 tracepoints
